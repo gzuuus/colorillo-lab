@@ -14,13 +14,16 @@ export const createUserFollowsByIdQuery = (userId: string) =>
 		staleTime: Infinity
 	})
 
-export const createUserProfileByIdQuery = (userId: string) =>
+export const createProfileQuery = (pubkey: string) =>
 	createQuery<NDKUserProfile | null>({
-		queryKey: ['profile', userId],
+		queryKey: ['profile', pubkey],
 		queryFn: async () => {
 			const $ndkStore = get(ndkStore)
 			if (!$ndkStore.activeUser) return null
-			return await $ndkStore.getUser({ pubkey: userId }).fetchProfile()
+			return await $ndkStore.getUser({ pubkey }).fetchProfile()
 		},
 		staleTime: Infinity
 	})
+
+export const getProfileName = (profile: NDKUserProfile | null | undefined): string =>
+	profile?.name || profile?.displayName || profile?.nip05 || 'Unnamed user'

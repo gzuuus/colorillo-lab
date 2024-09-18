@@ -1,52 +1,59 @@
+<!-- ColorIndex.svelte -->
 <script lang="ts">
-	import type { NDKUserProfile } from '@nostr-dev-kit/ndk'
+	import { spring } from 'svelte/motion'
 	import { onMount } from 'svelte'
-	import { createUserProfileByIdQuery } from '$lib/queries/follows.query'
-	import { resolveQuery } from '$lib/utils/queries.utils'
+	import RenderProfile from './renderProfile.svelte'
 
 	export let colors: { color: string; pubkey: string }[]
 	export let onColorClick: (index: number) => void
 
-	let hoveredIndex = -1
+	let hoveredIndex = spring(0)
 	let containerHeight: number
 	let showMagnifiedView = false
 	let colorPickerElement: HTMLElement
+	let magnifiedViewElement: HTMLElement
 
 	const visibleRange = 15
 
 	$: itemHeight = containerHeight / colors.length
 	$: magnifiedItemHeight = containerHeight / (visibleRange * 2 + 1)
 
-	$: magnifiedItems = colors
-		.slice(
-			Math.max(0, hoveredIndex - visibleRange),
-			Math.min(colors.length, hoveredIndex + visibleRange + 1)
-		)
-		.map(({ color, pubkey }) => ({
-			color,
-			pubkey,
-			profileQuery: createUserProfileByIdQuery(pubkey)
-		}))
+	$: magnifiedItems = colors.slice(
+		Math.max(0, Math.round($hoveredIndex) - visibleRange),
+		Math.min(colors.length, Math.round($hoveredIndex) + visibleRange + 1)
+	)
 
 	function handleMouseMove(event: MouseEvent) {
 		const { clientY } = event
 		const { top } = (event.currentTarget as HTMLElement).getBoundingClientRect()
-		hoveredIndex = Math.floor((clientY - top) / itemHeight)
+		const newHoveredIndex = (clientY - top) / itemHeight
+		hoveredIndex.set(newHoveredIndex)
 		showMagnifiedView = true
 	}
 
-	function handleMagnifiedViewClick(index: number) {
-		onColorClick(hoveredIndex - visibleRange + index)
-		showMagnifiedView = false
+	function handleColorClick(index: number) {
+		onColorClick(index)
+		colorPickerElement.scrollTop = index * itemHeight - containerHeight / 2 + itemHeight / 2
 	}
 
-	function getName(profile: NDKUserProfile | null): string {
-		return profile?.name || profile?.displayName || profile?.nip05 || 'Unnamed user'
+	function handleMagnifiedViewClick(index: number) {
+		const targetIndex = Math.round($hoveredIndex) - visibleRange + index
+		handleColorClick(targetIndex)
+	}
+
+	function handleKeyDown(event: KeyboardEvent, index: number) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault()
+			handleColorClick(index)
+		}
 	}
 
 	onMount(() => {
 		const handleOutsideClick = (event: MouseEvent) => {
-			if (colorPickerElement && !colorPickerElement.contains(event.target as Node)) {
+			if (
+				!colorPickerElement?.contains(event.target as Node) &&
+				!magnifiedViewElement?.contains(event.target as Node)
+			) {
 				showMagnifiedView = false
 			}
 		}
@@ -55,56 +62,55 @@
 	})
 </script>
 
-<div class="flex color-picker" bind:this={colorPickerElement}>
-	<ul
+<div class="flex color-picker">
+	<div
+		bind:this={colorPickerElement}
 		bind:clientHeight={containerHeight}
-		class="w-8 flex flex-col relative cursor-pointer list-none p-0 m-0"
+		class="w-8 flex flex-col relative cursor-pointer overflow-auto"
 		on:mousemove={handleMouseMove}
+		on:mouseleave={() => {
+			if (!magnifiedViewElement?.matches(':hover') && !showMagnifiedView) showMagnifiedView = false
+		}}
 		role="listbox"
 		aria-label="Color index"
+		tabindex="0"
 	>
-		{#each colors as { color }, index}
-			<li
+		{#each colors as { color }, index (index)}
+			<button
 				role="option"
-				aria-selected={hoveredIndex === index}
-				tabindex="0"
-				class="w-full"
+				aria-selected={Math.round($hoveredIndex) === index}
+				class="w-full border-0 p-0 m-0"
 				style:background-color={color}
 				style:height="{itemHeight}px"
-				on:click={() => onColorClick(index)}
-				on:keydown={(e) => e.key === 'Enter' && onColorClick(index)}
+				on:click={() => handleColorClick(index)}
+				on:keydown={(event) => handleKeyDown(event, index)}
 			/>
 		{/each}
-	</ul>
+	</div>
 
 	{#if showMagnifiedView}
 		<ul
+			bind:this={magnifiedViewElement}
 			class="w-48 flex flex-col list-none p-0 m-0"
-			on:mousemove={() => (showMagnifiedView = true)}
-			on:mouseleave={() => (showMagnifiedView = false)}
 			role="listbox"
 			aria-label="Magnified color index"
+			on:mouseleave={() => (showMagnifiedView = false)}
 		>
-			{#each magnifiedItems as { color, profileQuery }, index}
-				<li
-					role="option"
-					aria-selected={hoveredIndex === index}
-					tabindex="0"
-					class="w-full flex items-center"
-					style:height="{magnifiedItemHeight}px"
-					on:click={() => handleMagnifiedViewClick(index)}
-					on:keydown={(e) => e.key === 'Enter' && handleMagnifiedViewClick(index)}
-				>
-					<div class="w-12 h-full" style:background-color={color}></div>
-					<div class="ml-2 text-sm truncate">
-						{#await resolveQuery(() => profileQuery, 3, 500)}
-							Loading...
-						{:then profile}
-							{getName(profile)}
-						{:catch error}
-							Error: {error.message}
-						{/await}
-					</div>
+			{#each magnifiedItems as { color, pubkey }, index (pubkey)}
+				<li class="w-full flex items-center" style:height="{magnifiedItemHeight}px">
+					<button
+						role="option"
+						aria-selected={Math.round($hoveredIndex) - Math.round($hoveredIndex - visibleRange) ===
+							index}
+						class="w-full h-full flex items-center border-0 p-0 m-0 bg-transparent"
+						on:click={() => handleMagnifiedViewClick(index)}
+						on:keydown={(event) => handleKeyDown(event, index)}
+					>
+						<div class="w-12 h-full" style:background-color={color}></div>
+						<div class="ml-2 text-sm truncate">
+							<RenderProfile {pubkey} />
+						</div>
+					</button>
 				</li>
 			{/each}
 		</ul>

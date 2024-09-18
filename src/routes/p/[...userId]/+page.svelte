@@ -7,6 +7,7 @@
 	import tinycolor from 'tinycolor2'
 	import { derived, writable } from 'svelte/store'
 	import { createVirtualizer } from '@tanstack/svelte-virtual'
+	import { spring } from 'svelte/motion'
 
 	let contactListElement: HTMLElement
 	let currentColorIndex = writable(0)
@@ -50,13 +51,16 @@
 		const scrollTop = contactListElement.scrollTop
 		const virtualItems = $virtualizer.getVirtualItems()
 		const newIndex = virtualItems.findIndex((item) => item.start > scrollTop)
-
-		if (newIndex !== -1) {
-			currentColorIndex.set(virtualItems[newIndex].index)
-		} else if (virtualItems.length > 0) {
-			currentColorIndex.set(virtualItems[virtualItems.length - 1].index)
-		}
 	}
+	const query = createUserFollowsByIdQuery(``)
+	$: console.log(
+		$query.isFetched,
+		$query.isError,
+		$query.fetchStatus,
+		$query.isSuccess,
+		$query.status,
+		$query.failureCount
+	)
 </script>
 
 <h1 class="text-3xl font-bold mb-6">Your Contacts</h1>
@@ -66,7 +70,7 @@
 		<ColorIndex colors={$userColors} onColorClick={scrollToContact} />
 		<div class="relative border rounded-md overflow-hidden">
 			<div
-				class="sticky top-0 z-10 h-8 w-full"
+				class="sticky top-0 z-10 h-8 w-full transition-colors duration-300"
 				style:background-color={$userColors[$currentColorIndex]?.color}
 			>
 				<div class="absolute inset-0 bg-background opacity-80"></div>
