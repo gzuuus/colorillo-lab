@@ -20,6 +20,9 @@ importers:
       '@tanstack/svelte-query':
         specifier: ^5.56.2
         version: 5.56.2(svelte@4.2.19)
+      '@tanstack/svelte-table':
+        specifier: ^8.20.5
+        version: 8.20.5(svelte@4.2.19)
       '@tanstack/svelte-virtual':
         specifier: ^3.10.8
         version: 3.10.8(svelte@4.2.19)
@@ -29,6 +32,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       prettier-plugin-tailwindcss:
         specifier: ^0.6.6
         version: 0.6.6(prettier-plugin-svelte@3.2.6(prettier@3.3.3)(svelte@4.2.19))(prettier@3.3.3)
@@ -514,10 +520,20 @@ packages:
     peerDependencies:
       svelte: ^3.54.0 || ^4.0.0 || ^5.0.0-next.0
 
+  '@tanstack/svelte-table@8.20.5':
+    resolution: {integrity: sha512-sFqrA6zAt0mzreg3HWlcPeIwrfKp25tMDTrhkeq5GDzWthv/sW9bRFR3YGRcoxmtmHk3mS1wLQfJrotDXu7eDg==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      svelte: ^4.0.0 || ^3.49.0
+
   '@tanstack/svelte-virtual@3.10.8':
     resolution: {integrity: sha512-0h3ycxlfvS4BOyRCW/obD5ZgK+IoPaavo96rSIpZkBhVDEBZ14G+FPXyssIAomyEEI9Vx8eIpKkTOSO+lMt8Kw==}
     peerDependencies:
       svelte: ^3.48.0 || ^4.0.0
+
+  '@tanstack/table-core@8.20.5':
+    resolution: {integrity: sha512-P9dF7XbibHph2PFRz8gfBKEXEY/HJPOhym8CHmjF8y3q5mWpKx9xtZapXQUWCgkqvsK0R46Azuz+VaxD4Xl+Tg==}
+    engines: {node: '>=12'}
 
   '@tanstack/virtual-core@3.10.8':
     resolution: {integrity: sha512-PBu00mtt95jbKFi6Llk9aik8bnR3tR/oQP1o3TSi+iG//+Q2RTIzCEgKkHG8BB86kxMNW6O8wku+Lmi+QFR6jA==}
@@ -745,6 +761,9 @@ packages:
   data-uri-to-buffer@4.0.1:
     resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
     engines: {node: '>= 12'}
+
+  date-fns@4.1.0:
+    resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
 
   debug@2.6.9:
     resolution: {integrity: sha512-bC7ElrdJaJnPbAP+1EotYvqZsb3ecl5wi6Bfi6BJTUcNowp6cvspg0jXznRTKDjm/E7AdgFBVeAPVMNcKGsHMA==}
@@ -2098,10 +2117,17 @@ snapshots:
       '@tanstack/query-core': 5.56.2
       svelte: 4.2.19
 
+  '@tanstack/svelte-table@8.20.5(svelte@4.2.19)':
+    dependencies:
+      '@tanstack/table-core': 8.20.5
+      svelte: 4.2.19
+
   '@tanstack/svelte-virtual@3.10.8(svelte@4.2.19)':
     dependencies:
       '@tanstack/virtual-core': 3.10.8
       svelte: 4.2.19
+
+  '@tanstack/table-core@8.20.5': {}
 
   '@tanstack/virtual-core@3.10.8': {}
 
@@ -2348,6 +2374,8 @@ snapshots:
       type: 2.7.3
 
   data-uri-to-buffer@4.0.1: {}
+
+  date-fns@4.1.0: {}
 
   debug@2.6.9:
     dependencies:

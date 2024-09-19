@@ -2,7 +2,7 @@
 import ndkStore from '$lib/components/stores/ndk'
 import type { NDKUser, NDKUserProfile } from '@nostr-dev-kit/ndk'
 import { NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
-import { createQuery } from '@tanstack/svelte-query'
+import { QueryClient, createQuery } from '@tanstack/svelte-query'
 import { get } from 'svelte/store'
 
 export const followsQueryKey = (userId: string) => ['follows', userId]
@@ -56,3 +56,12 @@ export const createProfileQuery = (pubkey: string) =>
 
 export const getProfileName = (profile: NDKUserProfile | null | undefined): string =>
 	profile?.name || profile?.displayName || profile?.nip05 || 'Unnamed user'
+
+// Add this to the end of src/lib/queries/follows.query.ts
+
+export function getTypedProfileQueryData(
+	queryClient: QueryClient,
+	pubkey: string
+): NDKUserProfile | null | undefined {
+	return queryClient.getQueryData<NDKUserProfile | null>(profileQueryKey(pubkey))
+}
