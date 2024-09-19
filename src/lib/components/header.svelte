@@ -1,8 +1,9 @@
+<!-- src/lib/components/header.svelte -->
 <script lang="ts">
-	import ndkStore from '$lib'
 	import { Button } from '$lib/components/ui/button'
 	import { goto } from '$app/navigation'
 	import LoginButton from './loginButton.svelte'
+	import ndkStore from './stores/ndk'
 
 	function goToProfile() {
 		if ($ndkStore.activeUser) {
@@ -20,7 +21,7 @@
 				<span class="font-bold">Colorillo</span>
 			</a>
 			{#if $ndkStore.activeUser}
-				<Button variant="ghost" on:click={goToProfile}>Contacts</Button>
+				<Button variant="ghost" on:click={goToProfile}>Profile</Button>
 			{/if}
 		</div>
 		<LoginButton />
