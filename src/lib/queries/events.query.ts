@@ -1,25 +1,42 @@
 import ndkStore from '$lib/components/stores/ndk'
-import type { NDKEvent, NDKFilter, NDKSubscriptionOptions } from '@nostr-dev-kit/ndk'
+import { NDKSubscriptionCacheUsage, type NDKEvent, type NDKFilter } from '@nostr-dev-kit/ndk'
 import { createQuery } from '@tanstack/svelte-query'
 import { get } from 'svelte/store'
+import { queryClient } from './client'
 
+export const latestEventQueryKey = (pubkey: string) => ['latestEvent', pubkey]
 export const createLatestEventQuery = (pubkey: string) =>
-	createQuery<NDKEvent | null>({
-		queryKey: ['latestEvent', pubkey],
-		queryFn: async () => {
-			const $ndkStore = get(ndkStore)
-			if (!$ndkStore.activeUser) return null
+	createQuery<NDKEvent | null>(
+		{
+			queryKey: ['latestEvent', pubkey],
+			queryFn: async () => {
+				const $ndkStore = get(ndkStore)
 
-			const filter: NDKFilter = { kinds: [1], authors: [pubkey], limit: 1 }
-			const opts: NDKSubscriptionOptions = { closeOnEose: true }
+				const filter: NDKFilter = { kinds: [1], authors: [pubkey] }
 
-			try {
-				const event = await $ndkStore.fetchEvent(filter, opts)
-				return event
-			} catch (error) {
-				console.error(`Error fetching event for ${pubkey}:`, error)
-				return null
-			}
+				const cachedEvent = await $ndkStore.fetchEvent(filter, {
+					cacheUsage: NDKSubscriptionCacheUsage.ONLY_CACHE
+				})
+
+				if (cachedEvent) {
+					return cachedEvent
+				}
+
+				const eventFromRelay = await $ndkStore.fetchEvent(filter, {
+					cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY,
+					groupable: true
+				})
+
+				if (!eventFromRelay) {
+					console.log('Profile not found', pubkey)
+					throw Error('Profile not found')
+				}
+
+				return eventFromRelay
+			},
+			staleTime: 5 * 60 * 1000, // 5 minutes
+			retry: 3,
+			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
 		},
-		staleTime: 60000 // 1 minute, adjust as needed
-	})
+		queryClient
+	)

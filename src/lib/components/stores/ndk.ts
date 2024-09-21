@@ -7,7 +7,9 @@ let cacheAdapter: NDKCacheAdapter | undefined = undefined
 export const defaulRelaysUrls: string[] = [
 	'wss://relay.nostr.band',
 	'wss://nos.lol',
-	'wss://relay.nostr.net'
+	'wss://relay.nostr.net',
+	'wss://nostr.wine',
+	'wss://purplepag.es'
 ]
 
 if (typeof window !== 'undefined') {
@@ -22,7 +24,6 @@ export const ndk: NDKSvelte = new NDKSvelte({
 	explicitRelayUrls: defaulRelaysUrls,
 	blacklistRelayUrls: relayBlackList,
 	enableOutboxModel: true,
-	autoConnectUserRelays: true,
 	cacheAdapter
 })
 

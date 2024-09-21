@@ -4,11 +4,9 @@
 	import { loginWithExtension } from '$lib/ndkLogin'
 	import { Button } from '$lib/components/ui/button'
 	import ndkStore from '$lib/components/stores/ndk'
-	import { useQueryClient } from '@tanstack/svelte-query'
-	const queryClient = useQueryClient()
 
 	async function handleLogin() {
-		const loginResult = await loginWithExtension(queryClient)
+		const loginResult = await loginWithExtension()
 		if (loginResult && $ndkStore.activeUser) {
 			goto(`/p/${$ndkStore.activeUser.pubkey}`)
 		} else {

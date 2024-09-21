@@ -2,22 +2,32 @@
 <script lang="ts">
 	import Header from '$lib/components/header.svelte'
 	import '../app.css'
-	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query'
-	import { isLoggedIn, fetchActiveUserData } from '$lib/ndkLogin'
-	import { onMount } from 'svelte'
+	import { QueryClientProvider } from '@tanstack/svelte-query'
 	import { goto } from '$app/navigation'
 	import ndkStore from '$lib/components/stores/ndk'
 
-	const queryClient = new QueryClient()
-
-	onMount(async () => {
-		if (isLoggedIn()) {
-			await fetchActiveUserData()
-		}
-	})
+	import { queryClient } from '$lib/queries/client'
+	import { get } from 'svelte/store'
+	import { resolveQuery } from '$lib/utils/queries.utils'
+	import { createProfileQuery, createUserFollowsByIdQuery } from '$lib/queries/follows.query'
 
 	$: if ($ndkStore.activeUser && window.location.pathname === '/login') {
 		goto(`/p/${$ndkStore.activeUser.pubkey}`)
+	}
+
+	$: if ($ndkStore.activeUser?.pubkey) initializeUserData()
+
+	async function initializeUserData() {
+		console.log('Initializing user data')
+		const follows = await resolveQuery(() =>
+			createUserFollowsByIdQuery($ndkStore.activeUser!.pubkey)
+		)
+
+		if (follows) {
+			for (const user of follows) {
+				get(createProfileQuery(user.pubkey))
+			}
+		}
 	}
 </script>
 

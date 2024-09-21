@@ -27,7 +27,7 @@
 	$: virtualizer = createVirtualizer({
 		count: $userColors.length,
 		getScrollElement: () => contactListElement,
-		estimateSize: () => 80,
+		estimateSize: () => 90,
 		overscan: 5
 	})
 

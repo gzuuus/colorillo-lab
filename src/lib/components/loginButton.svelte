@@ -3,17 +3,14 @@
 	import { loginWithExtension } from '$lib/ndkLogin'
 	import { Button } from '$lib/components/ui/button'
 	import { goto } from '$app/navigation'
-	import { useQueryClient } from '@tanstack/svelte-query'
 	import ndkStore from './stores/ndk'
-
-	const queryClient = useQueryClient()
 
 	async function handleAuth() {
 		if ($ndkStore.activeUser) {
 			// Implement logout functionality
 			goto('/')
 		} else {
-			const loginResult = await loginWithExtension(queryClient)
+			const loginResult = await loginWithExtension()
 			if (!loginResult) {
 				console.error('Login error!')
 			}

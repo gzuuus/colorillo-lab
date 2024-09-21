@@ -4,7 +4,6 @@
 	import { createVirtualizer } from '@tanstack/svelte-virtual'
 	import { writable } from 'svelte/store'
 	import { Button } from '$lib/components/ui/button'
-	import { useQueryClient } from '@tanstack/svelte-query'
 	import {
 		createSvelteTable,
 		getCoreRowModel,
@@ -14,11 +13,11 @@
 		type Updater
 	} from '@tanstack/svelte-table'
 	import type { NDKUser } from '@nostr-dev-kit/ndk'
+	import { queryClient } from '$lib/queries/client'
 
 	export let pubkey: string
 	let contactListElement: HTMLElement
 
-	const queryClient = useQueryClient()
 	let sorting: SortingState = []
 
 	function setSorting(updater: Updater<SortingState>) {

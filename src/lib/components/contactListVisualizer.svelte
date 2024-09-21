@@ -1,9 +1,10 @@
+<!-- src/lib/components/contactListVisualizer.svelte -->
 <script lang="ts">
 	import { writable } from 'svelte/store'
 	import { Button } from '$lib/components/ui/button'
 	import ColorIndexView from './colorIndexView.svelte'
 	import DateSortedView from './dateSortedView.svelte'
-	import ProfileActivityView from './profileActivityView.svelte'
+	import ProfileActivity from './profileActivity.svelte'
 
 	export let pubkey: string
 
@@ -18,7 +19,7 @@
 	const visualizations = [
 		{ type: VisualizationType.ColorIndex, component: ColorIndexView },
 		{ type: VisualizationType.DateSorted, component: DateSortedView },
-		{ type: VisualizationType.ProfileActivity, component: ProfileActivityView }
+		{ type: VisualizationType.ProfileActivity, component: ProfileActivity }
 	]
 
 	function switchVisualization(type: VisualizationType) {
