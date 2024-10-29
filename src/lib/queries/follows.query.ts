@@ -43,6 +43,19 @@ export const createUserFollowsByIdQuery = (pubkey: string) =>
 		queryClient
 	)
 
+export function getTypedFollowsQueryData(
+	queryClient: QueryClient,
+	pubkey: string
+): Set<NDKUser> | null | undefined {
+	return queryClient.getQueryData<Set<NDKUser> | null>(followsQueryKey(pubkey))
+}
+export class ProfileNotFoundError extends Error {
+	constructor(pubkey: string) {
+		super(`Profile not found for ${pubkey}`)
+		this.name = 'ProfileNotFoundError'
+	}
+}
+
 export const createProfileQuery = (pubkey: string) =>
 	createQuery<NDKUserProfile | null>(
 		{
@@ -51,6 +64,7 @@ export const createProfileQuery = (pubkey: string) =>
 				const $ndkStore = get(ndkStore)
 				const user = $ndkStore.getUser({ pubkey })
 
+				// First try cache
 				const cachedProfile = await user.fetchProfile({
 					cacheUsage: NDKSubscriptionCacheUsage.ONLY_CACHE
 				})
@@ -59,21 +73,26 @@ export const createProfileQuery = (pubkey: string) =>
 					return cachedProfile
 				}
 
+				// Then try relays
 				const profileFromRelays = await user.fetchProfile({
 					cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY,
 					groupable: true
 				})
 
 				if (!profileFromRelays) {
-					console.log('Profile not found', pubkey)
-					throw Error('Profile not found')
+					throw new ProfileNotFoundError(pubkey)
 				}
 
 				return profileFromRelays
 			},
-			staleTime: 5 * 60 * 1000, // 5 minutes
-			retry: 3,
+			retry: (failureCount, error) => {
+				if (error instanceof ProfileNotFoundError) {
+					return false
+				}
+				return failureCount < 3
+			},
 			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+			staleTime: 5 * 60 * 1000, // 5 minutes
 			enabled: !!get(ndkStore).activeUser
 		},
 		queryClient

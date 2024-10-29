@@ -1,45 +1,32 @@
 <script lang="ts">
-	import Header from '$lib/components/header.svelte'
-	import '../app.css'
 	import { QueryClientProvider } from '@tanstack/svelte-query'
 	import { goto } from '$app/navigation'
 	import ndkStore from '$lib/components/stores/ndk'
-
 	import { queryClient } from '$lib/queries/client'
-	import { get } from 'svelte/store'
-	import { resolveQuery } from '$lib/utils/queries.utils'
-	import { createProfileQuery, createUserFollowsByIdQuery, getProfileName } from '$lib/queries/follows.query'
+	import { createUserFollowsByIdQuery } from '$lib/queries/follows.query'
+	import '../app.css'
+	import { contactLoader } from '$lib/components/services/contact-loader'
+	import Header from '$lib/components/header.svelte'
+
+	let loadingProgress = contactLoader.getProgress()
+
+	$: userFollows = $ndkStore.activeUser?.pubkey
+		? createUserFollowsByIdQuery($ndkStore.activeUser!.pubkey)
+		: undefined
+
+	async function initializeUserData() {
+		if ($userFollows?.data) {
+			const contacts = Array.from($userFollows.data)
+			await contactLoader.loadContacts(contacts)
+		}
+	}
+
+	$: if ($userFollows?.data && $loadingProgress.loaded === 0) {
+		initializeUserData()
+	}
 
 	$: if ($ndkStore.activeUser && window.location.pathname === '/login') {
 		goto(`/p/${$ndkStore.activeUser.pubkey}`)
-	}
-
-	$: userFollows = $ndkStore.activeUser?.pubkey ? createUserFollowsByIdQuery($ndkStore.activeUser!.pubkey) : undefined
-	// TODO: improve follow list discoverability
-	$: if (userFollows) console.log($userFollows?.data)
-	// $: if ($ndkStore.activeUser?.pubkey) initializeUserData()
-
-	// async function initializeUserData() {
-	// 	console.log('Initializing user data')
-	// 	const follows = await resolveQuery(() =>
-	// 		createUserFollowsByIdQuery($ndkStore.activeUser!.pubkey)
-	// 	)
-
-	// 	if (follows) {
-	// 		for (const user of follows) {
-	// 			get(createProfileQuery(user.pubkey))
-	// 		}
-	// 	}
-	// }
-	async function initializeUserData() {
-		for (const follow of $userFollows?.data!) {
-			console.log("Initializing q for", follow.pubkey)
-			const followProfile = await resolveQuery(() => createProfileQuery(follow.pubkey))
-			console.log("Profile for", getProfileName(followProfile))
-		}
-	}
-	$: if ($userFollows?.data) {
-		initializeUserData()
 	}
 </script>
 
