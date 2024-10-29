@@ -48,6 +48,9 @@
 	}
 </script>
 
+{#if $userFollowsQuery.data}
+	Contacts length: {$userFollowsQuery.data.size}
+{/if}
 <div class="grid grid-cols-[auto,1fr] gap-2 h-[calc(100vh-200px)]">
 	<ColorIndex colors={$userColors} onColorClick={scrollToContact} />
 	<div class="relative border rounded-md overflow-hidden">

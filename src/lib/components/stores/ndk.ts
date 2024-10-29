@@ -5,11 +5,12 @@ import { writable } from 'svelte/store'
 
 let cacheAdapter: NDKCacheAdapter | undefined = undefined
 export const defaulRelaysUrls: string[] = [
-	'wss://relay.nostr.band',
-	'wss://nos.lol',
-	'wss://relay.nostr.net',
-	'wss://nostr.wine',
-	'wss://purplepag.es'
+	// 'wss://nos.lol',
+	// 'wss://relay.nostr.net',
+	// 'wss://nostr.wine',
+	'wss://purplepag.es',
+	// 'wss://relay.damus.io'
+	'wss://nostrelites.org'
 ]
 
 if (typeof window !== 'undefined') {
@@ -23,7 +24,9 @@ export const relayBlackList: string[] = []
 export const ndk: NDKSvelte = new NDKSvelte({
 	explicitRelayUrls: defaulRelaysUrls,
 	blacklistRelayUrls: relayBlackList,
+	outboxRelayUrls: ['wss://purplepag.es', 'wss://relay.nos.social'],
 	enableOutboxModel: true,
+	autoConnectUserRelays: true,
 	cacheAdapter
 })
 

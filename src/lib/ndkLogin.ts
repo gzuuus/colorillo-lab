@@ -1,9 +1,6 @@
 // src/lib/ndkLogin.ts
 import { NDKNip07Signer, NDKSubscriptionCacheUsage, NDKUser } from '@nostr-dev-kit/ndk'
-import { createProfileQuery, createUserFollowsByIdQuery } from './queries/follows.query'
-import { get } from 'svelte/store'
 import ndkStore, { ndk } from './components/stores/ndk'
-import { resolveQuery } from './utils/queries.utils'
 
 export async function loginWithExtension(): Promise<boolean> {
 	try {
@@ -12,10 +9,7 @@ export async function loginWithExtension(): Promise<boolean> {
 		await signer.blockUntilReady()
 		ndk.signer = signer
 		ndkStore.set(ndk)
-		const user = await fetchActiveUserData()
-		// if (user) {
-		// 	await prefetchProfiles(user.pubkey)
-		// }
+		await fetchActiveUserData()
 		return true
 	} catch (e) {
 		console.error(e)

@@ -6,10 +6,9 @@
 	export let color: string
 	export let pubkey: string
 
-	$: state = queryClient.getQueryState(profileQueryKey(pubkey))
+	// $: state = queryClient.getQueryState(profileQueryKey(pubkey))
 
-	$: profileQuery =
-		state?.errorUpdateCount && state.errorUpdateCount > 2 ? undefined : createProfileQuery(pubkey)
+	$: profileQuery = createProfileQuery(pubkey)
 </script>
 
 <div class="grid grid-cols-[48px,1fr] gap-4 items-center hover:bg-muted transition-colors p-4">

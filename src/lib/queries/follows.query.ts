@@ -3,7 +3,7 @@ import { QueryClient, createQuery } from '@tanstack/svelte-query'
 import { get } from 'svelte/store'
 import ndkStore from '$lib/components/stores/ndk'
 import type { NDKUser, NDKUserProfile } from '@nostr-dev-kit/ndk'
-import { NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
+import { NDKKind, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
 import { queryClient } from './client'
 
 export const followsQueryKey = (pubkey: string) => ['follows', pubkey]
@@ -26,9 +26,9 @@ export const createUserFollowsByIdQuery = (pubkey: string) =>
 				}
 
 				const followsFromRelay = await $ndkStore.activeUser.follows({
-					cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY,
-					groupable: true
+					cacheUsage: NDKSubscriptionCacheUsage.PARALLEL
 				})
+				console.log(followsFromRelay)
 				if (!followsFromRelay) {
 					console.log('Follows not found', pubkey)
 					throw Error('Follows not found')

@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button'
 	import ColorIndexView from './colorIndexView.svelte'
 	import DateSortedView from './dateSortedView.svelte'
-	import ProfileActivity from './profileActivity.svelte'
+	import ProfileActivityView from './profileActivityView.svelte'
 
 	export let pubkey: string
 
@@ -19,7 +19,7 @@
 	const visualizations = [
 		{ type: VisualizationType.ColorIndex, component: ColorIndexView },
 		{ type: VisualizationType.DateSorted, component: DateSortedView },
-		{ type: VisualizationType.ProfileActivity, component: ProfileActivity }
+		{ type: VisualizationType.ProfileActivity, component: ProfileActivityView }
 	]
 
 	function switchVisualization(type: VisualizationType) {
