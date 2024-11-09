@@ -1,12 +1,11 @@
 import { browser } from '$app/environment'
-import { QueryClient, type CreateQueryResult } from '@tanstack/svelte-query'
-import { get } from 'svelte/store'
+import { QueryClient } from '@tanstack/svelte-query'
 
 export const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
 			enabled: browser,
-			staleTime: 5 * 60 * 1000, // 5 minutes
+			staleTime: 5 * 60 * 1000,
 			refetchOnWindowFocus: false,
 			refetchOnReconnect: true
 		}

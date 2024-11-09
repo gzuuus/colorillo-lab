@@ -1,4 +1,3 @@
-<!-- src/lib/components/loginButton.svelte -->
 <script lang="ts">
 	import { loginWithExtension } from '$lib/ndkLogin'
 	import { Button } from '$lib/components/ui/button'
@@ -7,7 +6,7 @@
 
 	async function handleAuth() {
 		if ($ndkStore.activeUser) {
-			// Implement logout functionality
+			// TODO: Implement logout functionality
 			goto('/')
 		} else {
 			const loginResult = await loginWithExtension()

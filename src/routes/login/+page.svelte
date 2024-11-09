@@ -1,4 +1,3 @@
-<!-- src/routes/login/+page.svelte -->
 <script lang="ts">
 	import { goto } from '$app/navigation'
 	import { loginWithExtension } from '$lib/ndkLogin'
@@ -10,7 +9,6 @@
 		if (loginResult && $ndkStore.activeUser) {
 			goto(`/p/${$ndkStore.activeUser.pubkey}`)
 		} else {
-			// Handle login error
 			console.error('Login failed')
 		}
 	}

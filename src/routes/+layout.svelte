@@ -9,8 +9,7 @@
 	import Header from '$lib/components/header.svelte'
 
 	$: if ($createActiveUserFollowsQuery.data) {
-		const contacts = Array.from($createActiveUserFollowsQuery.data)
-		contactLoader.loadContacts(contacts)
+		contactLoader.loadContacts(Array.from($createActiveUserFollowsQuery.data))
 	}
 
 	$: if ($ndkStore.activeUser && window.location.pathname === '/login') {

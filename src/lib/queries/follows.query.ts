@@ -29,12 +29,11 @@ export const createUserFollowsByIdQuery = (pubkey: string | undefined) =>
 				})
 				console.log(followsFromRelay)
 				if (!followsFromRelay) {
-					console.log('Follows not found', pubkey)
+					console.error('Follows not found', pubkey)
 					throw Error('Follows not found')
 				}
 				return followsFromRelay
 			},
-			staleTime: 5 * 60 * 1000, // 5 minutes
 			retry: 3,
 			enabled: !!pubkey,
 			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
@@ -68,7 +67,6 @@ export const createActiveUserFollowsQuery = createQuery(
 			return followsFromRelay
 		},
 		enabled: !!$ndkStore.activeUser?.pubkey,
-		staleTime: 5 * 60 * 1000, // 5 minutes
 		retry: 3,
 		retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000)
 	})),
@@ -116,7 +114,6 @@ export const createProfileQuery = (pubkey: string) =>
 				return failureCount < 3
 			},
 			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-			staleTime: 5 * 60 * 1000,
 			enabled: !!get(ndkStore).activeUser
 		},
 		queryClient
@@ -152,7 +149,6 @@ export const createActiveUserProfileQuery = createQuery(
 			return failureCount < 3
 		},
 		retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000),
-		staleTime: 5 * 60 * 1000,
 		enabled: !!$ndkStore.activeUser?.pubkey
 	})),
 	queryClient

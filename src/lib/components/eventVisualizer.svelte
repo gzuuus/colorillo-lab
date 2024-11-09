@@ -1,4 +1,3 @@
-<!-- EventVisualizer.svelte -->
 <script lang="ts">
 	import { formatDate, formatRelativeTime } from '$lib/utils/date.utils'
 	import { NDKKind } from '@nostr-dev-kit/ndk'
@@ -13,9 +12,8 @@
 	<Card>
 		<CardContent>
 			<h3 class="text-lg font-semibold">
-				{event ? NDKKind[event.kind] || `Kind ${event.kind}` : 'Unknown Event'}
+				{event ? NDKKind[Number(event.kind)] || `Kind ${event.kind}` : 'Unknown Event'}
 			</h3>
-			<!-- <p>{NDKKind(event)}</p> -->
 		</CardContent>
 		<CardFooter class="text-sm text-muted-foreground">
 			{#if event}
