@@ -30,7 +30,7 @@ interface LoaderState {
 }
 
 const EVENTS_QUERY_KEY = 'nostr-events'
-const AUTO_FETCH_DELAY = 500 // ms between batches
+const AUTO_FETCH_DELAY = 500
 const BATCH_SIZE = 500
 
 export class EventLoaderService {

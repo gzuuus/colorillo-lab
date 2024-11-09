@@ -1,8 +1,7 @@
-<!-- src/routes/+page.svelte -->
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button'
 	import { goto } from '$app/navigation'
-	import ndkStore from '$lib/components/stores/ndk'
+	import ndkStore from '$lib/stores/ndk'
 
 	function navigateToProfile() {
 		if ($ndkStore.activeUser) {

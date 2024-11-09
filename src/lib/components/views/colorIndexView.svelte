@@ -1,18 +1,19 @@
 <script lang="ts">
-	import ColorIndex from './colorIndex.svelte'
-	import ContactCard from './contactCard.svelte'
-	import { createUserFollowsByIdQuery } from '$lib/queries/follows.query'
+	import {
+		createActiveUserFollowsQuery,
+		createUserFollowsByIdQuery
+	} from '$lib/queries/follows.query'
 	import { createVirtualizer } from '@tanstack/svelte-virtual'
 	import tinycolor from 'tinycolor2'
 	import { derived, writable } from 'svelte/store'
+	import ColorIndex from '$lib/components/colorIndex.svelte'
+	import ContactCard from '$lib/components/contactCard.svelte'
 
-	export let pubkey: string
+	// export let pubkey: string
 	let contactListElement: HTMLElement
 	let currentColorIndex = writable(0)
 
-	$: userFollowsQuery = createUserFollowsByIdQuery(pubkey)
-
-	$: userColors = derived(userFollowsQuery, ($query) => {
+	$: userColors = derived(createActiveUserFollowsQuery, ($query) => {
 		if (!$query.data) return []
 
 		return sortColorsByHue(
@@ -48,8 +49,8 @@
 	}
 </script>
 
-{#if $userFollowsQuery.data}
-	Contacts length: {$userFollowsQuery.data.size}
+{#if $createActiveUserFollowsQuery.data}
+	Contacts length: {$createActiveUserFollowsQuery.data.size}
 {/if}
 <div class="grid grid-cols-[auto,1fr] gap-2 h-[calc(100vh-200px)]">
 	<ColorIndex colors={$userColors} onColorClick={scrollToContact} />

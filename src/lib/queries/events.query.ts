@@ -1,4 +1,4 @@
-import ndkStore from '$lib/components/stores/ndk'
+import ndkStore from '$lib/stores/ndk'
 import { NDKSubscriptionCacheUsage, type NDKEvent, type NDKFilter } from '@nostr-dev-kit/ndk'
 import { createQuery } from '@tanstack/svelte-query'
 import { get } from 'svelte/store'

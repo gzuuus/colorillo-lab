@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button'
 	import { goto } from '$app/navigation'
 	import LoginButton from './loginButton.svelte'
-	import ndkStore from './stores/ndk'
+	import ndkStore from '../stores/ndk'
 
 	function goToProfile() {
 		if ($ndkStore.activeUser) {

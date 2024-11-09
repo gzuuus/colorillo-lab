@@ -1,4 +1,3 @@
-<!-- src/lib/components/colorIndex.svelte -->
 <script lang="ts">
 	import { spring } from 'svelte/motion'
 	import { onMount } from 'svelte'

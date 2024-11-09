@@ -1,6 +1,6 @@
 import type { NDKEvent, NostrEvent } from '@nostr-dev-kit/ndk'
 import type { ExtendedBaseType, NDKEventStore } from '@nostr-dev-kit/ndk-svelte'
-import { ndk } from './components/stores/ndk'
+import { ndk } from './stores/ndk'
 import { derived, writable, type Readable } from 'svelte/store'
 import { db } from '@nostr-dev-kit/ndk-cache-dexie'
 

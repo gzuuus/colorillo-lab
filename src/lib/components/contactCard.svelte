@@ -1,12 +1,9 @@
 <script lang="ts">
-	import { queryClient } from '$lib/queries/client'
-	import { createProfileQuery, getProfileName, profileQueryKey } from '$lib/queries/follows.query'
+	import { createProfileQuery, getProfileName } from '$lib/queries/follows.query'
 	import { formatDate, formatRelativeTime } from '$lib/utils/date.utils'
 
 	export let color: string
 	export let pubkey: string
-
-	// $: state = queryClient.getQueryState(profileQueryKey(pubkey))
 
 	$: profileQuery = createProfileQuery(pubkey)
 </script>

@@ -1,27 +1,26 @@
 <script lang="ts">
-	import { createUserFollowsByIdQuery } from '$lib/queries/follows.query'
-	import ndkStore from '$lib/components/stores/ndk'
-	import ContactCard from './contactCard.svelte'
+	import {
+		createActiveUserFollowsQuery,
+		createUserFollowsByIdQuery
+	} from '$lib/queries/follows.query'
+	import ndkStore from '$lib/stores/ndk'
+	import ContactCard from '$lib/components/contactCard.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import { Badge } from '$lib/components/ui/badge'
 	import { NDKKind } from '@nostr-dev-kit/ndk'
 	import * as Popover from '$lib/components/ui/popover'
 	import * as Command from '$lib/components/ui/command'
-	import EventVisualizer from './eventVisualizer.svelte'
-	import { formatRelativeTime } from '$lib/utils/date.utils'
+	import EventVisualizer from '$lib/components/eventVisualizer.svelte'
 	import { onDestroy } from 'svelte'
-	import { eventLoader } from './services/event-loader'
+	import { eventLoader } from '$lib/services/event-loader'
 
-	export let pubkey: string
-
-	$: userFollowsQuery = createUserFollowsByIdQuery(pubkey)
 	$: progress = eventLoader.getProgress()
 	$: targetKinds = eventLoader.getTargetKinds()
 	$: pendingPubkeys = eventLoader.getPendingPubkeys()
 	$: eventsQuery = $ndkStore && eventLoader.createEventsQuery($ndkStore)
 
-	$: if ($userFollowsQuery.data) {
-		const pubkeys = [...$userFollowsQuery.data].map((follow) => follow.pubkey)
+	$: if ($createActiveUserFollowsQuery.data) {
+		const pubkeys = [...$createActiveUserFollowsQuery.data].map((follow) => follow.pubkey)
 		const initialKinds = [0, 1, 3, 7]
 		eventLoader.initialize(pubkeys, initialKinds)
 	}
@@ -196,9 +195,9 @@
 	</div>
 
 	<!-- Events Grid -->
-	{#if $eventsQuery?.data && $userFollowsQuery.data}
+	{#if $eventsQuery?.data && $createActiveUserFollowsQuery.data}
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each $userFollowsQuery.data as { pubkey } (pubkey)}
+			{#each $createActiveUserFollowsQuery.data as { pubkey } (pubkey)}
 				<div class="space-y-2">
 					<ContactCard color={`#${pubkey.slice(0, 6)}`} {pubkey} />
 					<EventVisualizer event={$eventsQuery.data.get(pubkey)} />

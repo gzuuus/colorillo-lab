@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores'
 	import ContactListVisualizer from '$lib/components/contactListVisualizer.svelte'
-	import { contactLoader } from '$lib/components/services/contact-loader'
+	import { contactLoader } from '$lib/services/contact-loader'
 	import { createProfileQuery, getProfileName } from '$lib/queries/follows.query'
 
 	const pubkey = $page.params.pubkey

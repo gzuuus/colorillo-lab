@@ -1,12 +1,9 @@
-<!-- src/lib/components/contactListVisualizer.svelte -->
 <script lang="ts">
 	import { writable } from 'svelte/store'
 	import { Button } from '$lib/components/ui/button'
-	import ColorIndexView from './colorIndexView.svelte'
-	import DateSortedView from './dateSortedView.svelte'
-	import ProfileActivityView from './profileActivityView.svelte'
-
-	export let pubkey: string
+	import DateSortedView from './views/dateSortedView.svelte'
+	import ColorIndexView from './views/colorIndexView.svelte'
+	import ProfileActivityView from './views/profileActivityView.svelte'
 
 	enum VisualizationType {
 		ColorIndex = 'Color Index',
@@ -42,7 +39,7 @@
 <div>
 	{#each visualizations as viz}
 		{#if $currentVisualization === viz.type}
-			<svelte:component this={viz.component} {pubkey} />
+			<svelte:component this={viz.component} />
 		{/if}
 	{/each}
 </div>

@@ -1,6 +1,10 @@
 <script lang="ts">
-	import ContactCard from './contactCard.svelte'
-	import { createUserFollowsByIdQuery, getTypedProfileQueryData } from '$lib/queries/follows.query'
+	import ContactCard from '../contactCard.svelte'
+	import {
+		createActiveUserFollowsQuery,
+		createUserFollowsByIdQuery,
+		getTypedProfileQueryData
+	} from '$lib/queries/follows.query'
 	import { createVirtualizer } from '@tanstack/svelte-virtual'
 	import { writable } from 'svelte/store'
 	import { Button } from '$lib/components/ui/button'
@@ -15,7 +19,8 @@
 	import type { NDKUser } from '@nostr-dev-kit/ndk'
 	import { queryClient } from '$lib/queries/client'
 
-	export let pubkey: string
+	// TODO: if you aready have the profiles of your contacts cached, this view will display outdated data, we have to manually or automatically refresh the profiles
+
 	let contactListElement: HTMLElement
 
 	let sorting: SortingState = []
@@ -48,10 +53,8 @@
 		}
 	]
 
-	$: userFollowsQuery = createUserFollowsByIdQuery(pubkey)
-
 	$: tableOptions = writable({
-		data: Array.from($userFollowsQuery.data || []),
+		data: Array.from($createActiveUserFollowsQuery.data || []),
 		columns,
 		state: {
 			sorting

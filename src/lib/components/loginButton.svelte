@@ -3,7 +3,7 @@
 	import { loginWithExtension } from '$lib/ndkLogin'
 	import { Button } from '$lib/components/ui/button'
 	import { goto } from '$app/navigation'
-	import ndkStore from './stores/ndk'
+	import ndkStore from '../stores/ndk'
 
 	async function handleAuth() {
 		if ($ndkStore.activeUser) {

@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation'
 	import { loginWithExtension } from '$lib/ndkLogin'
 	import { Button } from '$lib/components/ui/button'
-	import ndkStore from '$lib/components/stores/ndk'
+	import ndkStore from '$lib/stores/ndk'
 
 	async function handleLogin() {
 		const loginResult = await loginWithExtension()

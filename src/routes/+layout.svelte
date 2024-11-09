@@ -1,28 +1,16 @@
 <script lang="ts">
 	import { QueryClientProvider } from '@tanstack/svelte-query'
 	import { goto } from '$app/navigation'
-	import ndkStore from '$lib/components/stores/ndk'
+	import ndkStore from '$lib/stores/ndk'
 	import { queryClient } from '$lib/queries/client'
-	import { createUserFollowsByIdQuery } from '$lib/queries/follows.query'
+	import { createActiveUserFollowsQuery } from '$lib/queries/follows.query'
 	import '../app.css'
-	import { contactLoader } from '$lib/components/services/contact-loader'
+	import { contactLoader } from '$lib/services/contact-loader'
 	import Header from '$lib/components/header.svelte'
 
-	let loadingProgress = contactLoader.getProgress()
-
-	$: userFollows = $ndkStore.activeUser?.pubkey
-		? createUserFollowsByIdQuery($ndkStore.activeUser!.pubkey)
-		: undefined
-
-	async function initializeUserData() {
-		if ($userFollows?.data) {
-			const contacts = Array.from($userFollows.data)
-			await contactLoader.loadContacts(contacts)
-		}
-	}
-
-	$: if ($userFollows?.data && $loadingProgress.loaded === 0) {
-		initializeUserData()
+	$: if ($createActiveUserFollowsQuery.data) {
+		const contacts = Array.from($createActiveUserFollowsQuery.data)
+		contactLoader.loadContacts(contacts)
 	}
 
 	$: if ($ndkStore.activeUser && window.location.pathname === '/login') {

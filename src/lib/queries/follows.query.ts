@@ -1,15 +1,15 @@
 // src/lib/queries/follows.query.ts
 import { QueryClient, createQuery } from '@tanstack/svelte-query'
-import { get } from 'svelte/store'
-import ndkStore from '$lib/components/stores/ndk'
+import { derived, get } from 'svelte/store'
+import ndkStore from '$lib/stores/ndk'
 import type { NDKUser, NDKUserProfile } from '@nostr-dev-kit/ndk'
 import { NDKKind, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
 import { queryClient } from './client'
 
-export const followsQueryKey = (pubkey: string) => ['follows', pubkey]
+export const followsQueryKey = (pubkey: string | undefined) => ['follows', pubkey]
 export const profileQueryKey = (pubkey: string) => ['profile', pubkey]
 
-export const createUserFollowsByIdQuery = (pubkey: string) =>
+export const createUserFollowsByIdQuery = (pubkey: string | undefined) =>
 	createQuery<Set<NDKUser> | null>(
 		{
 			queryKey: followsQueryKey(pubkey),
@@ -42,6 +42,39 @@ export const createUserFollowsByIdQuery = (pubkey: string) =>
 		},
 		queryClient
 	)
+
+export const createActiveUserFollowsQuery = createQuery(
+	derived(ndkStore, ($ndkStore) => ({
+		queryKey: followsQueryKey($ndkStore.activeUser?.pubkey),
+		queryFn: async () => {
+			const $ndkStore = get(ndkStore)
+			if (!$ndkStore.activeUser) return null
+
+			const cachedFollows = await $ndkStore.activeUser.follows({
+				cacheUsage: NDKSubscriptionCacheUsage.ONLY_CACHE
+			})
+
+			if (cachedFollows && cachedFollows.size > 0) {
+				return cachedFollows
+			}
+
+			const followsFromRelay = await $ndkStore.activeUser.follows({
+				cacheUsage: NDKSubscriptionCacheUsage.PARALLEL
+			})
+			console.log(followsFromRelay)
+			if (!followsFromRelay) {
+				console.log('Follows not found', $ndkStore.activeUser?.pubkey)
+				throw Error('Follows not found')
+			}
+			return followsFromRelay
+		},
+		enabled: !!$ndkStore.activeUser?.pubkey,
+		staleTime: 5 * 60 * 1000, // 5 minutes
+		retry: 3,
+		retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000)
+	})),
+	queryClient
+)
 
 export function getTypedFollowsQueryData(
 	queryClient: QueryClient,

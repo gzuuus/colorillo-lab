@@ -1,6 +1,7 @@
 // src/lib/ndkLogin.ts
 import { NDKNip07Signer, NDKSubscriptionCacheUsage, NDKUser } from '@nostr-dev-kit/ndk'
-import ndkStore, { ndk } from './components/stores/ndk'
+import ndkStore, { ndk } from './stores/ndk'
+import { invalidateAll } from '$app/navigation'
 
 export async function loginWithExtension(): Promise<boolean> {
 	try {
@@ -10,6 +11,7 @@ export async function loginWithExtension(): Promise<boolean> {
 		ndk.signer = signer
 		ndkStore.set(ndk)
 		await fetchActiveUserData()
+		await invalidateAll()
 		return true
 	} catch (e) {
 		console.error(e)
