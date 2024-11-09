@@ -1,13 +1,12 @@
-// src/lib/queries/follows.query.ts
 import { QueryClient, createQuery } from '@tanstack/svelte-query'
 import { derived, get } from 'svelte/store'
 import ndkStore from '$lib/stores/ndk'
 import type { NDKUser, NDKUserProfile } from '@nostr-dev-kit/ndk'
-import { NDKKind, NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
+import { NDKSubscriptionCacheUsage } from '@nostr-dev-kit/ndk'
 import { queryClient } from './client'
 
 export const followsQueryKey = (pubkey: string | undefined) => ['follows', pubkey]
-export const profileQueryKey = (pubkey: string) => ['profile', pubkey]
+export const profileQueryKey = (pubkey: string | undefined) => ['profile', pubkey]
 
 export const createUserFollowsByIdQuery = (pubkey: string | undefined) =>
 	createQuery<Set<NDKUser> | null>(
@@ -76,12 +75,6 @@ export const createActiveUserFollowsQuery = createQuery(
 	queryClient
 )
 
-export function getTypedFollowsQueryData(
-	queryClient: QueryClient,
-	pubkey: string
-): Set<NDKUser> | null | undefined {
-	return queryClient.getQueryData<Set<NDKUser> | null>(followsQueryKey(pubkey))
-}
 export class ProfileNotFoundError extends Error {
 	constructor(pubkey: string) {
 		super(`Profile not found for ${pubkey}`)
@@ -97,7 +90,6 @@ export const createProfileQuery = (pubkey: string) =>
 				const $ndkStore = get(ndkStore)
 				const user = $ndkStore.getUser({ pubkey })
 
-				// First try cache
 				const cachedProfile = await user.fetchProfile({
 					cacheUsage: NDKSubscriptionCacheUsage.ONLY_CACHE
 				})
@@ -106,7 +98,6 @@ export const createProfileQuery = (pubkey: string) =>
 					return cachedProfile
 				}
 
-				// Then try relays
 				const profileFromRelays = await user.fetchProfile({
 					cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY,
 					groupable: true
@@ -125,11 +116,47 @@ export const createProfileQuery = (pubkey: string) =>
 				return failureCount < 3
 			},
 			retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-			staleTime: 5 * 60 * 1000, // 5 minutes
+			staleTime: 5 * 60 * 1000,
 			enabled: !!get(ndkStore).activeUser
 		},
 		queryClient
 	)
+
+export const createActiveUserProfileQuery = createQuery(
+	derived(ndkStore, ($ndkStore) => ({
+		queryKey: profileQueryKey($ndkStore.activeUser?.pubkey),
+		queryFn: async () => {
+			const cachedProfile = await $ndkStore.activeUser?.fetchProfile({
+				cacheUsage: NDKSubscriptionCacheUsage.ONLY_CACHE
+			})
+
+			if (cachedProfile) {
+				return cachedProfile
+			}
+
+			const profileFromRelays = await $ndkStore.activeUser?.fetchProfile({
+				cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY,
+				groupable: true
+			})
+
+			if (!profileFromRelays) {
+				throw new ProfileNotFoundError($ndkStore.activeUser?.pubkey ?? '')
+			}
+
+			return profileFromRelays
+		},
+		retry: (failureCount: number, error: unknown) => {
+			if (error instanceof ProfileNotFoundError) {
+				return false
+			}
+			return failureCount < 3
+		},
+		retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000),
+		staleTime: 5 * 60 * 1000,
+		enabled: !!$ndkStore.activeUser?.pubkey
+	})),
+	queryClient
+)
 
 export const getProfileName = (profile: NDKUserProfile | null | undefined): string =>
 	profile?.name ||

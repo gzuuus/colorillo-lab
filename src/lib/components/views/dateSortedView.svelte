@@ -2,7 +2,6 @@
 	import ContactCard from '../contactCard.svelte'
 	import {
 		createActiveUserFollowsQuery,
-		createUserFollowsByIdQuery,
 		getTypedProfileQueryData
 	} from '$lib/queries/follows.query'
 	import { createVirtualizer } from '@tanstack/svelte-virtual'
