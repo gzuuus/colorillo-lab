@@ -9,7 +9,7 @@ export const defaulRelaysUrls: string[] = [
 	// 'wss://relay.nostr.net',
 	// 'wss://nostr.wine',
 	'wss://purplepag.es',
-	// 'wss://relay.damus.io'
+	// 'wss://relay.damus.io
 	'wss://nostrelites.org'
 ]
 

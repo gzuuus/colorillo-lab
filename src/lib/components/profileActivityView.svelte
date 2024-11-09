@@ -1,210 +1,207 @@
 <script lang="ts">
 	import { createUserFollowsByIdQuery } from '$lib/queries/follows.query'
-	import { latestEventsStore } from './services/notesService'
-	import ndkStore from './stores/ndk'
+	import ndkStore from '$lib/components/stores/ndk'
 	import ContactCard from './contactCard.svelte'
 	import { Button } from '$lib/components/ui/button'
+	import { Badge } from '$lib/components/ui/badge'
 	import { NDKKind } from '@nostr-dev-kit/ndk'
 	import * as Popover from '$lib/components/ui/popover'
 	import * as Command from '$lib/components/ui/command'
 	import EventVisualizer from './eventVisualizer.svelte'
-	import { debounce } from '$lib/utils'
+	import { formatRelativeTime } from '$lib/utils/date.utils'
+	import { onDestroy } from 'svelte'
+	import { eventLoader } from './services/event-loader'
 
 	export let pubkey: string
 
 	$: userFollowsQuery = createUserFollowsByIdQuery(pubkey)
+	$: progress = eventLoader.getProgress()
+	$: targetKinds = eventLoader.getTargetKinds()
+	$: pendingPubkeys = eventLoader.getPendingPubkeys()
+	$: eventsQuery = $ndkStore && eventLoader.createEventsQuery($ndkStore)
 
 	$: if ($userFollowsQuery.data) {
 		const pubkeys = [...$userFollowsQuery.data].map((follow) => follow.pubkey)
-		console.log('pub length', pubkeys.length)
-		latestEventsStore.fetchLatestEvents(pubkeys)
+		const initialKinds = [0, 1, 3, 7]
+		eventLoader.initialize(pubkeys, initialKinds)
 	}
 
-	let autoFetch = false
-	let localTargetKinds = $latestEventsStore.targetKinds
-	let selectedKinds: number[] = []
-	let isSelectionMode = false
+	const kindOptions = Object.entries(NDKKind)
+		.filter(([_, value]) => typeof value === 'number')
+		.sort((a, b) => Number(a[1]) - Number(b[1]))
+		.map(([key, value]) => ({
+			label: key,
+			value: value as number
+		}))
 
-	const debouncedUpdateTargetKinds = debounce((kinds: number[]) => {
-		latestEventsStore.updateTargetKinds(kinds)
-	}, 300)
-
-	async function fetchRemainingEvents() {
-		const shouldContinue = await latestEventsStore.fetchRemainingEvents($ndkStore)
-		if (!shouldContinue) {
-			autoFetch = false
+	async function fetchNextBatch() {
+		if ($ndkStore && !$progress.isFetching && $pendingPubkeys.length > 0) {
+			await eventLoader.fetchNextBatch($ndkStore)
 		}
 	}
 
 	function toggleAutoFetch() {
-		autoFetch = !autoFetch
-		if (
-			autoFetch &&
-			$latestEventsStore.remainingCount > 0 &&
-			$latestEventsStore.fetchingStatus === 'idle'
-		) {
-			fetchRemainingEvents()
-		}
-	}
-
-	$: if (
-		autoFetch &&
-		$latestEventsStore.fetchingStatus === 'idle' &&
-		$latestEventsStore.remainingCount > 0
-	) {
-		fetchRemainingEvents()
-	}
-
-	function toggleSelectionMode() {
-		isSelectionMode = !isSelectionMode
-		selectedKinds = []
-	}
-
-	function toggleKindSelection(kind: number) {
-		if (selectedKinds.includes(kind)) {
-			selectedKinds = selectedKinds.filter((k) => k !== kind)
-		} else {
-			selectedKinds = [...selectedKinds, kind]
-		}
-	}
-
-	function removeSelectedKinds() {
-		if ($latestEventsStore.fetchingStatus === 'idle') {
-			localTargetKinds = localTargetKinds.filter((kind) => !selectedKinds.includes(kind))
-			debouncedUpdateTargetKinds(localTargetKinds)
-			selectedKinds = []
+		if ($ndkStore) {
+			if ($progress.isAutoFetching) {
+				eventLoader.stopAutoFetch()
+			} else {
+				eventLoader.startAutoFetch($ndkStore)
+			}
 		}
 	}
 
 	function addKind(kind: number) {
-		if ($latestEventsStore.fetchingStatus === 'idle') {
-			localTargetKinds = [...localTargetKinds, kind]
-			debouncedUpdateTargetKinds(localTargetKinds)
+		if (!$progress.isFetching && !$targetKinds.includes(kind)) {
+			const newKinds = [...$targetKinds, kind].sort((a, b) => a - b)
+			eventLoader.updateTargetKinds(newKinds)
 		}
 	}
+
 	function removeKind(kind: number) {
-		if ($latestEventsStore.fetchingStatus === 'idle') {
-			localTargetKinds = localTargetKinds.filter((k) => k !== kind)
-			debouncedUpdateTargetKinds(localTargetKinds)
+		if (!$progress.isFetching && $targetKinds.length > 1) {
+			const newKinds = $targetKinds.filter((k) => k !== kind)
+			eventLoader.updateTargetKinds(newKinds)
 		}
 	}
 
-	const kindOptions = Object.entries(NDKKind)
-		.filter(([key, value]) => typeof value === 'number')
-		.map(([key, value]) => ({ label: key, value: value as number }))
-
-	$: isFetching = $latestEventsStore.fetchingStatus === 'fetching'
+	onDestroy(() => {
+		eventLoader.reset()
+	})
 </script>
 
-<div class="space-y-4">
-	<div>
-		<h3 class="text-lg font-semibold mb-2">Target Event Kinds</h3>
-		<div class="flex flex-wrap gap-2 mb-2">
-			{#each localTargetKinds as kind}
-				<Button
-					variant={isSelectionMode && selectedKinds.includes(kind) ? 'secondary' : 'outline'}
-					size="sm"
-					on:click={() => (isSelectionMode ? toggleKindSelection(kind) : null)}
-					disabled={isFetching}
-				>
-					{NDKKind[kind] || `Kind ${kind}`}
-					{#if !isSelectionMode}
-						<span class="ml-2 cursor-pointer" on:click|stopPropagation={() => removeKind(kind)}
-							>×</span
+<div class="space-y-6">
+	<!-- Event Kinds Selection -->
+	<div class="space-y-4">
+		<div class="flex items-center justify-between">
+			<h3 class="text-lg font-semibold">Event Types</h3>
+			<Popover.Root let:ids>
+				<Popover.Trigger asChild let:builder>
+					<Button
+						builders={[builder]}
+						variant="outline"
+						size="sm"
+						class="w-[150px]"
+						disabled={$progress.isFetching}
+					>
+						Add Event Type
+					</Button>
+				</Popover.Trigger>
+				<Popover.Content class="w-[250px] p-0">
+					<Command.Root>
+						<Command.Input placeholder="Search event types..." />
+						<Command.Empty>No event type found.</Command.Empty>
+						<Command.Group>
+							{#each kindOptions as option}
+								<Command.Item
+									value={`${option.value} ${option.label}`}
+									onSelect={() => addKind(option.value)}
+									disabled={$progress.isFetching || $targetKinds.includes(option.value)}
+								>
+									<div class="flex items-center justify-between w-full">
+										<span class="font-semibold">{option.value}</span>
+										<span class="text-sm text-muted-foreground">{option.label}</span>
+									</div>
+								</Command.Item>
+							{/each}
+						</Command.Group>
+					</Command.Root>
+				</Popover.Content>
+			</Popover.Root>
+		</div>
+
+		<!-- Active Event Types -->
+		<div class="flex flex-wrap gap-2">
+			{#each $targetKinds as kind}
+				<div class="relative group">
+					<Badge variant="secondary" class="pr-8">
+						<span class="mr-2">{NDKKind[kind] || `Kind ${kind}`}</span>
+						{#if $progress.stats.has(kind)}
+							<span class="text-xs text-muted-foreground">
+								({$progress.stats.get(kind)?.count || 0})
+							</span>
+						{/if}
+						<button
+							class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+							on:click={() => removeKind(kind)}
+							aria-label={`Remove ${NDKKind[kind] || `Kind ${kind}`}`}
 						>
-					{/if}
-				</Button>
+							×
+						</button>
+					</Badge>
+				</div>
 			{/each}
 		</div>
-		<div class="flex gap-2 mb-2">
-			<Button
-				variant={isSelectionMode ? 'secondary' : 'outline'}
-				size="sm"
-				on:click={toggleSelectionMode}
-				disabled={isFetching}
-			>
-				{isSelectionMode ? 'Exit Selection Mode' : 'Enter Selection Mode'}
-			</Button>
-			{#if isSelectionMode}
-				<Button
-					variant="destructive"
-					size="sm"
-					on:click={removeSelectedKinds}
-					disabled={isFetching || selectedKinds.length === 0}
-				>
-					Remove Selected ({selectedKinds.length})
-				</Button>
-			{/if}
-		</div>
-		<Popover.Root let:ids>
-			<Popover.Trigger asChild let:builder>
-				<Button
-					builders={[builder]}
-					variant="outline"
-					role="combobox"
-					class="w-[200px] justify-between"
-					disabled={isFetching}
-				>
-					Add Kinds
-				</Button>
-			</Popover.Trigger>
-			<Popover.Content class="w-[250px] p-0">
-				<Command.Root>
-					<Command.Input placeholder="Search kind..." />
-					<Command.Empty>No kind found.</Command.Empty>
-					<Command.Group>
-						{#each kindOptions as option}
-							<Command.Item
-								value={`${option.value} ${option.label}`}
-								onSelect={() => {
-									if (!isFetching && !localTargetKinds.includes(option.value)) {
-										addKind(option.value)
-									}
-								}}
-								disabled={isFetching || localTargetKinds.includes(option.value)}
-							>
-								<div class="flex items-center justify-between w-full">
-									<div class="flex items-center gap-2">
-										{#if localTargetKinds.includes(option.value)}
-											<span class="text-green-500">✓</span>
-										{/if}
-										<span class="font-semibold">{option.value}</span>
-										<span class="text-sm text-gray-600">{option.label}</span>
-									</div>
-								</div>
-							</Command.Item>
-						{/each}
-					</Command.Group>
-				</Command.Root>
-			</Popover.Content>
-		</Popover.Root>
 	</div>
 
-	<div>
-		<p>Remaining pubkeys without events: {$latestEventsStore.remainingCount}</p>
-		<div class="flex gap-2">
+	<!-- Loading Controls and Progress -->
+	<div class="space-y-4">
+		<div class="flex items-center gap-4">
 			<Button
-				on:click={fetchRemainingEvents}
-				disabled={isFetching || autoFetch || localTargetKinds.length === 0}
+				on:click={fetchNextBatch}
+				disabled={$progress.isFetching || $pendingPubkeys.length === 0 || $progress.isAutoFetching}
+				variant={$progress.isFetching ? 'outline' : 'default'}
 			>
-				{isFetching ? 'Fetching...' : 'Fetch Remaining'}
+				{#if $progress.isFetching}
+					<span class="inline-block animate-spin mr-2">⟳</span>
+				{/if}
+				{$progress.isFetching ? 'Fetching...' : 'Fetch Next Batch'}
 			</Button>
+
 			<Button
-				variant={autoFetch ? 'destructive' : 'secondary'}
+				variant={$progress.isAutoFetching ? 'destructive' : 'secondary'}
 				on:click={toggleAutoFetch}
-				disabled={localTargetKinds.length === 0 || autoFetch}
+				disabled={$pendingPubkeys.length === 0}
 			>
-				{autoFetch ? 'Stop Auto Fetch' : 'Start Auto Fetch'}
+				{#if $progress.isAutoFetching}
+					<span class="inline-block animate-spin mr-2">⟳</span>
+				{/if}
+				{$progress.isAutoFetching ? 'Stop Auto Fetch' : 'Start Auto Fetch'}
 			</Button>
+		</div>
+
+		<div class="p-4 bg-muted rounded-md">
+			<div class="grid gap-2">
+				<!-- Progress Bar -->
+				<div class="w-full bg-secondary rounded-full h-2 overflow-hidden">
+					<div
+						class="bg-primary h-full transition-all duration-300 ease-out"
+						style="width: {($progress.loaded / $progress.total) * 100}%"
+					/>
+				</div>
+
+				<div class="flex justify-between text-sm text-muted-foreground">
+					<div>
+						<p>Progress: {$progress.loaded} / {$progress.total} contacts</p>
+						<p>Pending: {$pendingPubkeys.length} contacts</p>
+						{#if $progress.lastBatchSize > 0}
+							<p>Last batch: {$progress.lastBatchSize} events found</p>
+						{/if}
+					</div>
+
+					{#if $progress.estimatedTimeRemaining}
+						<div class="text-right">
+							<p>
+								Estimated time remaining:
+								{Math.ceil($progress.estimatedTimeRemaining / 1000)}s
+							</p>
+						</div>
+					{/if}
+				</div>
+
+				{#if $progress.isFetching}
+					<p class="text-sm text-muted-foreground animate-pulse">Loading events...</p>
+				{/if}
+			</div>
 		</div>
 	</div>
 
-	{#if $userFollowsQuery.data}
+	<!-- Events Grid -->
+	{#if $eventsQuery?.data && $userFollowsQuery.data}
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each $userFollowsQuery.data as { pubkey }}
+			{#each $userFollowsQuery.data as { pubkey } (pubkey)}
 				<div class="space-y-2">
 					<ContactCard color={`#${pubkey.slice(0, 6)}`} {pubkey} />
-					<EventVisualizer event={$latestEventsStore.events.get(pubkey)} />
+					<EventVisualizer event={$eventsQuery.data.get(pubkey)} />
 				</div>
 			{/each}
 		</div>
