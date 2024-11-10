@@ -1,8 +1,5 @@
 <script lang="ts">
-	import {
-		createActiveUserFollowsQuery,
-		createUserFollowsByIdQuery
-	} from '$lib/queries/follows.query'
+	import { createActiveUserFollowsQuery } from '$lib/queries/follows.query'
 	import ndkStore from '$lib/stores/ndk'
 	import ContactCard from '$lib/components/contactCard.svelte'
 	import { Button } from '$lib/components/ui/button'
@@ -13,11 +10,13 @@
 	import EventVisualizer from '$lib/components/eventVisualizer.svelte'
 	import { onDestroy } from 'svelte'
 	import { eventLoader } from '$lib/services/event-loader'
+	import EventLoaderProgress from '../eventLoaderProgress.svelte'
 
 	$: progress = eventLoader.getProgress()
 	$: targetKinds = eventLoader.getTargetKinds()
 	$: pendingPubkeys = eventLoader.getPendingPubkeys()
-	$: eventsQuery = $ndkStore && eventLoader.createEventsQuery($ndkStore)
+	$: eventsQuery = $ndkStore && eventLoader.createEventsQuery()
+	$: autoFetchEnabled = $progress.isAutoFetching
 
 	$: if ($createActiveUserFollowsQuery.data) {
 		const pubkeys = [...$createActiveUserFollowsQuery.data].map((follow) => follow.pubkey)
@@ -69,7 +68,7 @@
 </script>
 
 <div class="space-y-6">
-	<!-- Event Kinds Selection -->
+	<!-- Event Type Selection -->
 	<div class="space-y-4">
 		<div class="flex items-center justify-between">
 			<h3 class="text-lg font-semibold">Event Types</h3>
@@ -108,100 +107,81 @@
 			</Popover.Root>
 		</div>
 
-		<!-- Active Event Types -->
-		<div class="flex flex-wrap gap-2">
+		<!-- Active Event Types with Stats -->
+		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 			{#each $targetKinds as kind}
-				<div class="relative group">
-					<Badge variant="secondary" class="pr-8">
-						<span class="mr-2">{NDKKind[kind] || `Kind ${kind}`}</span>
-						{#if $progress.stats.has(kind)}
-							<span class="text-xs text-muted-foreground">
-								({$progress.stats.get(kind)?.count || 0})
-							</span>
-						{/if}
+				<div class="p-4 rounded-lg border bg-card">
+					<div class="flex items-center justify-between mb-4">
+						<Badge variant="secondary" class="truncate max-w-[80%]">
+							{NDKKind[kind] || `Kind ${kind}`}
+						</Badge>
 						<button
-							class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+							class="text-muted-foreground hover:text-foreground transition-colors"
 							on:click={() => removeKind(kind)}
+							disabled={$targetKinds.length <= 1}
 							aria-label={`Remove ${NDKKind[kind] || `Kind ${kind}`}`}
 						>
 							×
 						</button>
-					</Badge>
+					</div>
+
+					<EventLoaderProgress stats={$progress.stats} {kind} total={$progress.total} />
 				</div>
 			{/each}
 		</div>
 	</div>
 
-	<!-- Loading Controls and Progress -->
-	<div class="space-y-4">
-		<div class="flex items-center gap-4">
-			<Button
-				on:click={fetchNextBatch}
-				disabled={$progress.isFetching || $pendingPubkeys.length === 0 || $progress.isAutoFetching}
-				variant={$progress.isFetching ? 'outline' : 'default'}
-			>
-				{#if $progress.isFetching}
-					<span class="inline-block animate-spin mr-2">⟳</span>
-				{/if}
-				{$progress.isFetching ? 'Fetching...' : 'Fetch Next Batch'}
-			</Button>
+	<!-- Loading Controls -->
+	<div class="flex items-center gap-4">
+		<Button
+			on:click={fetchNextBatch}
+			disabled={$progress.isFetching || $pendingPubkeys.length === 0 || $progress.isAutoFetching}
+			variant={$progress.isFetching ? 'outline' : 'default'}
+		>
+			{#if $progress.isFetching}
+				<span class="inline-block animate-spin mr-2">⟳</span>
+			{/if}
+			{$progress.isFetching ? 'Fetching...' : 'Fetch Next Batch'}
+		</Button>
 
-			<Button
-				variant={$progress.isAutoFetching ? 'destructive' : 'secondary'}
-				on:click={toggleAutoFetch}
-				disabled={$pendingPubkeys.length === 0}
-			>
-				{#if $progress.isAutoFetching}
-					<span class="inline-block animate-spin mr-2">⟳</span>
-				{/if}
-				{$progress.isAutoFetching ? 'Stop Auto Fetch' : 'Start Auto Fetch'}
-			</Button>
-		</div>
+		<Button
+			variant={autoFetchEnabled ? 'destructive' : 'secondary'}
+			on:click={toggleAutoFetch}
+			disabled={$pendingPubkeys.length === 0}
+		>
+			{#if autoFetchEnabled}
+				<span class="inline-block animate-spin mr-2">⟳</span>
+			{/if}
+			{autoFetchEnabled ? 'Stop Auto Fetch' : 'Start Auto Fetch'}
+		</Button>
+	</div>
 
+	<!-- Progress Stats -->
+	{#if $progress.total > 0}
 		<div class="p-4 bg-muted rounded-md">
 			<div class="grid gap-2">
-				<!-- Progress Bar -->
-				<div class="w-full bg-secondary rounded-full h-2 overflow-hidden">
-					<div
-						class="bg-primary h-full transition-all duration-300 ease-out"
-						style="width: {($progress.loaded / $progress.total) * 100}%"
-					/>
-				</div>
-
 				<div class="flex justify-between text-sm text-muted-foreground">
 					<div>
-						<p>Progress: {$progress.loaded} / {$progress.total} contacts</p>
 						<p>Pending: {$pendingPubkeys.length} contacts</p>
-						{#if $progress.lastBatchSize > 0}
-							<p>Last batch: {$progress.lastBatchSize} events found</p>
-						{/if}
 					</div>
-
-					{#if $progress.estimatedTimeRemaining}
-						<div class="text-right">
-							<p>
-								Estimated time remaining:
-								{Math.ceil($progress.estimatedTimeRemaining / 1000)}s
-							</p>
-						</div>
-					{/if}
 				</div>
-
 				{#if $progress.isFetching}
 					<p class="text-sm text-muted-foreground animate-pulse">Loading events...</p>
 				{/if}
 			</div>
 		</div>
-	</div>
+	{/if}
 
 	<!-- Events Grid -->
 	{#if $eventsQuery?.data && $createActiveUserFollowsQuery.data}
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 			{#each $createActiveUserFollowsQuery.data as { pubkey } (pubkey)}
-				<div class="space-y-2">
-					<ContactCard color={`#${pubkey.slice(0, 6)}`} {pubkey} />
-					<EventVisualizer event={$eventsQuery.data.get(pubkey)} />
-				</div>
+				{#if $eventsQuery.data.get(pubkey)}
+					<div class="space-y-2">
+						<ContactCard color={`#${pubkey.slice(0, 6)}`} {pubkey} />
+						<EventVisualizer event={$eventsQuery.data.get(pubkey)} />
+					</div>
+				{/if}
 			{/each}
 		</div>
 	{/if}

@@ -6,8 +6,9 @@ import { queryClient } from '$lib/queries/client'
 
 interface EventStats {
 	kind: number
-	count: number
-	latestTime?: number
+	foundCount: number
+	contactsWithEvents: number
+	totalContacts: number
 }
 
 interface LoaderProgress {
@@ -18,8 +19,7 @@ interface LoaderProgress {
 	total: number
 	loaded: number
 	lastBatchSize: number
-	fetchStartTime?: number
-	estimatedTimeRemaining?: number
+	completionPercentage: number
 }
 
 interface LoaderState {
@@ -27,14 +27,21 @@ interface LoaderState {
 	progress: LoaderProgress
 	pubkeys: string[]
 	events: Map<string, NDKEvent>
+	missingEvents: Map<string, Set<number>>
 }
 
 const EVENTS_QUERY_KEY = 'nostr-events'
 const AUTO_FETCH_DELAY = 500
 const BATCH_SIZE = 500
+const MIN_LIMIT = 1
+const MAX_LIMIT = 500
+const LIMIT_INCREMENT = 100
+const MIN_SUCCESS_RATE = 0.5
 
 export class EventLoaderService {
 	private abortController?: AbortController
+	private retryCount: Map<string, number> = new Map()
+
 	private state = writable<LoaderState>({
 		targetKinds: [],
 		progress: {
@@ -44,10 +51,12 @@ export class EventLoaderService {
 			fetchedPubkeys: new Set(),
 			total: 0,
 			loaded: 0,
-			lastBatchSize: 0
+			lastBatchSize: 0,
+			completionPercentage: 0
 		},
 		pubkeys: [],
-		events: new Map()
+		events: new Map(),
+		missingEvents: new Map()
 	})
 
 	getProgress(): Readable<LoaderProgress> {
@@ -60,15 +69,9 @@ export class EventLoaderService {
 
 	getPendingPubkeys(): Readable<string[]> {
 		return derived(this.state, ($state) => {
-			return $state.pubkeys.filter((pk) => !$state.progress.fetchedPubkeys.has(pk))
-		})
-	}
-
-	createEventsQuery(ndk: NDK) {
-		return createQuery({
-			queryKey: [EVENTS_QUERY_KEY],
-			queryFn: () => get(this.state).events,
-			staleTime: Infinity
+			return $state.pubkeys.filter((pk) => {
+				return !$state.events.has(pk)
+			})
 		})
 	}
 
@@ -77,43 +80,22 @@ export class EventLoaderService {
 		if (state.progress.isAutoFetching || state.progress.isFetching) return
 
 		this.abortController = new AbortController()
-		const startTime = Date.now()
 
 		this.state.update((state) => ({
 			...state,
 			progress: {
 				...state.progress,
-				isAutoFetching: true,
-				fetchStartTime: startTime
+				isAutoFetching: true
 			}
 		}))
 
 		try {
 			while (!this.abortController.signal.aborted) {
-				const currentState = get(this.state)
-				const pendingPubkeys = currentState.pubkeys.filter(
-					(pk) => !currentState.progress.fetchedPubkeys.has(pk)
-				)
-
-				if (pendingPubkeys.length === 0) break
-
-				const hasMore = await this.fetchNextBatch(ndk)
-				if (!hasMore) break
-
-				// Calculate estimated time remaining
-				const elapsed = Date.now() - startTime
-				const processedCount = currentState.progress.loaded
-				const remainingCount = pendingPubkeys.length
-				const avgTimePerBatch = elapsed / processedCount
-				const estimatedTimeRemaining = avgTimePerBatch * remainingCount
-
-				this.state.update((state) => ({
-					...state,
-					progress: {
-						...state.progress,
-						estimatedTimeRemaining
-					}
-				}))
+				const hasMoreEvents = await this.fetchNextBatch(ndk)
+				if (!hasMoreEvents) {
+					console.log('No more events to fetch, stopping')
+					break
+				}
 
 				await new Promise((resolve) => setTimeout(resolve, AUTO_FETCH_DELAY))
 			}
@@ -122,72 +104,88 @@ export class EventLoaderService {
 		}
 	}
 
-	stopAutoFetch(): void {
-		this.abortController?.abort()
-		this.abortController = undefined
-
-		this.state.update((state) => ({
-			...state,
-			progress: {
-				...state.progress,
-				isAutoFetching: false,
-				fetchStartTime: undefined,
-				estimatedTimeRemaining: undefined
-			}
-		}))
-	}
-
 	async fetchNextBatch(ndk: NDK): Promise<boolean> {
 		const currentState = get(this.state)
 		if (currentState.progress.isFetching) return false
 
-		const pendingPubkeys = currentState.pubkeys.filter(
-			(pk) => !currentState.progress.fetchedPubkeys.has(pk)
-		)
-
+		const pendingPubkeys = get(this.getPendingPubkeys())
 		if (pendingPubkeys.length === 0) return false
 
 		const batchPubkeys = pendingPubkeys.slice(0, BATCH_SIZE)
-
 		this.setFetching(true)
-		const batchStartTime = Date.now()
+
+		const previousSuccessRate = currentState.progress.lastBatchSize / BATCH_SIZE
+
+		const currentLimit = this.calculateNextLimit(
+			currentState.progress.lastBatchSize,
+			previousSuccessRate
+		)
 
 		try {
 			const filter: NDKFilter = {
 				kinds: currentState.targetKinds,
 				authors: batchPubkeys,
-				limit: 1
+				limit: currentLimit
 			}
 
 			const events = await ndk.fetchEvents(filter)
+
+			if (events.size === 0) {
+				console.log('No events found in batch, stopping fetch')
+				return false
+			}
+
 			const newEvents = new Map<string, NDKEvent>()
 			const newStats = new Map<number, EventStats>()
+			const pubkeysWithEvents = new Set<string>()
+
+			currentState.targetKinds.forEach((kind) => {
+				newStats.set(kind, {
+					kind,
+					foundCount: 0,
+					contactsWithEvents: 0,
+					totalContacts: batchPubkeys.length
+				})
+			})
+
+			const contactsWithKinds = new Map<number, Set<string>>()
+			currentState.targetKinds.forEach((kind) => {
+				contactsWithKinds.set(kind, new Set())
+			})
 
 			for (const event of events) {
 				const kind = event.kind!
 				const pubkey = event.pubkey
-				const existingEvent = newEvents.get(pubkey)
+				pubkeysWithEvents.add(pubkey)
 
+				const contactsForKind = contactsWithKinds.get(kind)
+				if (contactsForKind) {
+					contactsForKind.add(pubkey)
+				}
+
+				const existingEvent = newEvents.get(pubkey)
 				if (!existingEvent || event.created_at! > existingEvent.created_at!) {
 					newEvents.set(pubkey, event)
 				}
 
-				const kindStats = newStats.get(kind) || { kind, count: 0 }
-				kindStats.count++
-				kindStats.latestTime = Math.max(event.created_at!, kindStats.latestTime || 0)
-				newStats.set(kind, kindStats)
+				const kindStats = newStats.get(kind)!
+				kindStats.foundCount++
 			}
 
-			const batchDuration = Date.now() - batchStartTime
+			for (const [kind, contacts] of contactsWithKinds) {
+				const stats = newStats.get(kind)
+				if (stats) {
+					stats.contactsWithEvents = contacts.size
+				}
+			}
 
 			this.state.update((state) => {
 				const updatedEvents = new Map(state.events)
 				for (const [pubkey, event] of newEvents) {
-					const existingEvent = updatedEvents.get(pubkey)
-					if (!existingEvent || event.created_at! > existingEvent.created_at!) {
-						updatedEvents.set(pubkey, event)
-					}
+					updatedEvents.set(pubkey, event)
 				}
+
+				const completionPercentage = Math.round((updatedEvents.size / state.pubkeys.length) * 100)
 
 				return {
 					...state,
@@ -195,29 +193,63 @@ export class EventLoaderService {
 					progress: {
 						...state.progress,
 						fetchedPubkeys: new Set([...state.progress.fetchedPubkeys, ...batchPubkeys]),
-						loaded: state.progress.loaded + batchPubkeys.length,
-						lastBatchSize: events.size,
-						stats: this.mergeStats(state.progress.stats, newStats)
+						loaded: updatedEvents.size,
+						lastBatchSize: pubkeysWithEvents.size,
+						stats: this.mergeStats(state.progress.stats, newStats),
+						completionPercentage
 					}
 				}
 			})
 
-			const updatedState = get(this.state)
-			queryClient.setQueryData([EVENTS_QUERY_KEY], updatedState.events)
-
-			return pendingPubkeys.length > BATCH_SIZE
+			queryClient.setQueryData([EVENTS_QUERY_KEY], get(this.state).events)
+			return true
 		} finally {
 			this.setFetching(false)
 		}
 	}
 
+	createEventsQuery() {
+		return createQuery(
+			{
+				queryKey: [EVENTS_QUERY_KEY],
+				queryFn: () => get(this.state).events,
+				staleTime: Infinity
+			},
+			queryClient
+		)
+	}
+
+	private calculateNextLimit(lastBatchSize: number, previousSuccessRate: number): number {
+		if (lastBatchSize === 0) return MIN_LIMIT
+
+		if (previousSuccessRate < MIN_SUCCESS_RATE) {
+			return Math.min(MAX_LIMIT, lastBatchSize + LIMIT_INCREMENT)
+		}
+
+		return MIN_LIMIT
+	}
+
 	initialize(pubkeys: string[], initialKinds: number[]) {
+		this.retryCount.clear()
+
 		this.state.update((state) => {
 			const filteredEvents = new Map(
 				Array.from(state.events.entries()).filter(
 					([_, event]) => initialKinds.includes(event.kind!) && pubkeys.includes(event.pubkey)
 				)
 			)
+
+			const missingEvents = new Map<string, Set<number>>()
+			pubkeys.forEach((pubkey) => {
+				missingEvents.set(pubkey, new Set(initialKinds))
+			})
+
+			filteredEvents.forEach((event, pubkey) => {
+				const missingKinds = missingEvents.get(pubkey)
+				if (missingKinds) {
+					missingKinds.delete(event.kind!)
+				}
+			})
 
 			return {
 				targetKinds: initialKinds,
@@ -229,16 +261,28 @@ export class EventLoaderService {
 					total: pubkeys.length,
 					loaded: filteredEvents.size,
 					lastBatchSize: 0,
-					fetchStartTime: undefined,
-					estimatedTimeRemaining: undefined
+					completionPercentage: 0
 				},
 				pubkeys,
-				events: filteredEvents
+				events: filteredEvents,
+				missingEvents
 			}
 		})
 
-		const state = get(this.state)
-		queryClient.setQueryData([EVENTS_QUERY_KEY], state.events)
+		queryClient.setQueryData([EVENTS_QUERY_KEY], get(this.state).events)
+	}
+
+	stopAutoFetch(): void {
+		this.abortController?.abort()
+		this.abortController = undefined
+
+		this.state.update((state) => ({
+			...state,
+			progress: {
+				...state.progress,
+				isAutoFetching: false
+			}
+		}))
 	}
 
 	async updateTargetKinds(kinds: number[]) {
@@ -259,9 +303,7 @@ export class EventLoaderService {
 					stats: new Map(),
 					fetchedPubkeys: new Set(filteredEvents.keys()),
 					loaded: filteredEvents.size,
-					lastBatchSize: 0,
-					fetchStartTime: undefined,
-					estimatedTimeRemaining: undefined
+					lastBatchSize: 0
 				},
 				events: filteredEvents
 			}
@@ -276,18 +318,21 @@ export class EventLoaderService {
 		newStats: Map<number, EventStats>
 	): Map<number, EventStats> {
 		const merged = new Map(existing)
-		newStats.forEach((stat, kind) => {
+
+		newStats.forEach((newStat, kind) => {
 			const existingStat = merged.get(kind)
 			if (existingStat) {
 				merged.set(kind, {
 					kind,
-					count: existingStat.count + stat.count,
-					latestTime: Math.max(existingStat.latestTime ?? 0, stat.latestTime ?? 0)
+					foundCount: existingStat.foundCount + newStat.foundCount,
+					contactsWithEvents: existingStat.contactsWithEvents + newStat.contactsWithEvents,
+					totalContacts: existingStat.totalContacts + newStat.totalContacts
 				})
 			} else {
-				merged.set(kind, stat)
+				merged.set(kind, newStat)
 			}
 		})
+
 		return merged
 	}
 
@@ -296,14 +341,14 @@ export class EventLoaderService {
 			...state,
 			progress: {
 				...state.progress,
-				isFetching,
-				estimatedTimeRemaining: isFetching ? state.progress.estimatedTimeRemaining : undefined
+				isFetching
 			}
 		}))
 	}
 
 	reset() {
 		this.stopAutoFetch()
+		this.retryCount.clear()
 
 		this.state.set({
 			targetKinds: [],
@@ -315,11 +360,11 @@ export class EventLoaderService {
 				total: 0,
 				loaded: 0,
 				lastBatchSize: 0,
-				fetchStartTime: undefined,
-				estimatedTimeRemaining: undefined
+				completionPercentage: 0
 			},
 			pubkeys: [],
-			events: new Map()
+			events: new Map(),
+			missingEvents: new Map()
 		})
 		queryClient.setQueryData([EVENTS_QUERY_KEY], new Map())
 	}

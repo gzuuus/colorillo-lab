@@ -12,8 +12,12 @@
 	}
 </script>
 
-{#if $progress.total > 0 && progressPercentage < 100 && $progress.failed == 0}
-	<div class="w-full space-y-4 p-4 rounded-lg bg-background/95">
+{#if $progress.total > 0 && !$progress.isComplete}
+	<div class="w-full p-4 rounded-lg bg-background/95">
+		<div class=" inline-flex w-full items-center gap-2">
+			<Progress value={progressPercentage} max={100} class="w-full h-1" />
+			<span>{progressPercentage}%</span>
+		</div>
 		<div class="flex items-center justify-between text-sm">
 			<span class="text-muted-foreground">
 				Loading profiles {$progress.loaded}/{$progress.total}
@@ -25,10 +29,6 @@
 					<span>{$progress.failed} failed</span>
 				</div>
 			{/if}
-		</div>
-		<div class=" inline-flex w-full items-center gap-2">
-			<Progress value={progressPercentage} max={100} class="w-full" />
-			<span>{progressPercentage}%</span>
 		</div>
 		{#if $progress.isComplete}
 			<p class="text-sm text-muted-foreground text-center">
