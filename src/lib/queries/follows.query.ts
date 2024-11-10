@@ -73,13 +73,6 @@ export const createActiveUserFollowsQuery = createQuery(
 	queryClient
 )
 
-export class ProfileNotFoundError extends Error {
-	constructor(pubkey: string) {
-		super(`Profile not found for ${pubkey}`)
-		this.name = 'ProfileNotFoundError'
-	}
-}
-
 export const createProfileQuery = (pubkey: string) =>
 	createQuery<NDKUserProfile | null>(
 		{
@@ -102,13 +95,13 @@ export const createProfileQuery = (pubkey: string) =>
 				})
 
 				if (!profileFromRelays) {
-					throw new ProfileNotFoundError(pubkey)
+					throw new Error(pubkey)
 				}
 
 				return profileFromRelays
 			},
 			retry: (failureCount, error) => {
-				if (error instanceof ProfileNotFoundError) {
+				if (error instanceof Error) {
 					return false
 				}
 				return failureCount < 3
@@ -137,13 +130,13 @@ export const createActiveUserProfileQuery = createQuery(
 			})
 
 			if (!profileFromRelays) {
-				throw new ProfileNotFoundError($ndkStore.activeUser?.pubkey ?? '')
+				throw new Error($ndkStore.activeUser?.pubkey ?? '')
 			}
 
 			return profileFromRelays
 		},
 		retry: (failureCount: number, error: unknown) => {
-			if (error instanceof ProfileNotFoundError) {
+			if (error instanceof Error) {
 				return false
 			}
 			return failureCount < 3

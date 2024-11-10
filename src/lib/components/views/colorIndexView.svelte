@@ -1,15 +1,11 @@
 <script lang="ts">
-	import {
-		createActiveUserFollowsQuery,
-		createUserFollowsByIdQuery
-	} from '$lib/queries/follows.query'
+	import { createActiveUserFollowsQuery } from '$lib/queries/follows.query'
 	import { createVirtualizer } from '@tanstack/svelte-virtual'
 	import tinycolor from 'tinycolor2'
 	import { derived, writable } from 'svelte/store'
 	import ColorIndex from '$lib/components/colorIndex.svelte'
 	import ContactCard from '$lib/components/contactCard.svelte'
 
-	// export let pubkey: string
 	let contactListElement: HTMLElement
 	let currentColorIndex = writable(0)
 

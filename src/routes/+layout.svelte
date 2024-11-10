@@ -7,6 +7,7 @@
 	import '../app.css'
 	import { contactLoader } from '$lib/services/contact-loader'
 	import Header from '$lib/components/header.svelte'
+	import ProfileLoaderProgress from '$lib/components/profileLoaderProgress.svelte'
 
 	$: if ($createActiveUserFollowsQuery.data) {
 		contactLoader.loadContacts(Array.from($createActiveUserFollowsQuery.data))
@@ -20,6 +21,7 @@
 <QueryClientProvider client={queryClient}>
 	<div class="min-h-screen bg-background">
 		<Header />
+		<ProfileLoaderProgress />
 		<main class="container mx-auto px-4 py-8">
 			<slot />
 		</main>

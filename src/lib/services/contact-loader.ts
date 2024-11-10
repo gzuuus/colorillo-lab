@@ -1,5 +1,5 @@
 import { type NDKUser } from '@nostr-dev-kit/ndk'
-import { createProfileQuery, ProfileNotFoundError } from '$lib/queries/follows.query'
+import { createProfileQuery } from '$lib/queries/follows.query'
 import { writable, type Readable } from 'svelte/store'
 import { resolveQuery } from '$lib/utils/queries.utils'
 
@@ -11,7 +11,7 @@ interface LoadingProgress {
 }
 
 export class ContactLoaderService {
-	private BATCH_SIZE = 30
+	private BATCH_SIZE = 50
 	private CONCURRENT_BATCHES = 3
 
 	private progress = writable<LoadingProgress>({
@@ -68,7 +68,7 @@ export class ContactLoaderService {
 						loaded: p.loaded + 1
 					}))
 				} catch (error) {
-					if (error instanceof ProfileNotFoundError) {
+					if (error instanceof Error) {
 						console.info(`Profile not found for ${contact.pubkey}`)
 					} else {
 						console.warn(`Error loading profile for ${contact.pubkey}:`, error)
