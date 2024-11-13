@@ -9,7 +9,7 @@ export const defaulRelaysUrls: string[] = [
 	// 'wss://relay.nostr.net',
 	// 'wss://nostr.wine',
 	'wss://purplepag.es',
-	// 'wss://relay.damus.io
+	'wss://relay.damus.io',
 	'wss://nostrelites.org'
 ]
 
@@ -24,7 +24,6 @@ export const relayBlackList: string[] = []
 export const ndk: NDKSvelte = new NDKSvelte({
 	explicitRelayUrls: defaulRelaysUrls,
 	blacklistRelayUrls: relayBlackList,
-	outboxRelayUrls: ['wss://purplepag.es', 'wss://relay.nos.social'],
 	enableOutboxModel: true,
 	autoConnectUserRelays: true,
 	cacheAdapter

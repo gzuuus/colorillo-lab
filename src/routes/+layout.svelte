@@ -8,6 +8,9 @@
 	import { contactLoader } from '$lib/services/contact-loader'
 	import Header from '$lib/components/header.svelte'
 	import ProfileLoaderProgress from '$lib/components/profileLoaderProgress.svelte'
+	import { relayPoolManager } from '$lib/utils/relay.utils'
+
+	$: $relayPoolManager
 
 	$: if ($createActiveUserFollowsQuery.data) {
 		contactLoader.loadContacts(Array.from($createActiveUserFollowsQuery.data))

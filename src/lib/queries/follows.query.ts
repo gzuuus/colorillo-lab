@@ -57,8 +57,9 @@ export const createActiveUserFollowsQuery = createQuery(
 			}
 
 			const followsFromRelay = await $ndkStore.activeUser.follows({
-				cacheUsage: NDKSubscriptionCacheUsage.PARALLEL
+				cacheUsage: NDKSubscriptionCacheUsage.ONLY_RELAY
 			})
+
 			console.log(followsFromRelay)
 			if (!followsFromRelay) {
 				console.log('Follows not found', $ndkStore.activeUser?.pubkey)

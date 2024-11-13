@@ -62,7 +62,7 @@ export class ContactLoaderService {
 		await Promise.all(
 			batch.map(async (contact) => {
 				try {
-					await resolveQuery(() => createProfileQuery(contact.pubkey))
+					await resolveQuery(() => createProfileQuery(contact.pubkey), 1000 * 60)
 					this.progress.update((p) => ({
 						...p,
 						loaded: p.loaded + 1
