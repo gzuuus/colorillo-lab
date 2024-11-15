@@ -83,7 +83,8 @@ export const createProfileQuery = (pubkey: string) =>
 				const user = $ndkStore.getUser({ pubkey })
 
 				const cachedProfile = await user.fetchProfile({
-					cacheUsage: NDKSubscriptionCacheUsage.ONLY_CACHE
+					cacheUsage: NDKSubscriptionCacheUsage.ONLY_CACHE,
+					groupable: true
 				})
 
 				if (cachedProfile) {

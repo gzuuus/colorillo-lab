@@ -31,12 +31,12 @@ interface LoaderState {
 }
 
 const EVENTS_QUERY_KEY = 'nostr-events'
-const AUTO_FETCH_DELAY = 500
-const BATCH_SIZE = 500
+const AUTO_FETCH_DELAY = 50
+const BATCH_SIZE = 1000
 const MIN_LIMIT = 1
-const MAX_LIMIT = 500
-const LIMIT_INCREMENT = 100
-const MIN_SUCCESS_RATE = 0.5
+const MAX_LIMIT = 60
+const LIMIT_INCREMENT = 20
+const MIN_SUCCESS_RATE = 0.04
 
 export class EventLoaderService {
 	private abortController?: AbortController
@@ -115,7 +115,6 @@ export class EventLoaderService {
 		this.setFetching(true)
 
 		const previousSuccessRate = currentState.progress.lastBatchSize / BATCH_SIZE
-
 		const currentLimit = this.calculateNextLimit(
 			currentState.progress.lastBatchSize,
 			previousSuccessRate
@@ -129,16 +128,19 @@ export class EventLoaderService {
 			}
 
 			const events = await ndk.fetchEvents(filter)
-
+			console.log('Fetched events', events.size)
 			if (events.size === 0) {
 				console.log('No events found in batch, stopping fetch')
 				return false
 			}
 
-			const newEvents = new Map<string, NDKEvent>()
+			// Group events by pubkey and track stats
+			const eventsByPubkey = new Map<string, NDKEvent[]>()
 			const newStats = new Map<number, EventStats>()
 			const pubkeysWithEvents = new Set<string>()
+			const contactsWithKinds = new Map<number, Set<string>>()
 
+			// Initialize stats and tracking structures
 			currentState.targetKinds.forEach((kind) => {
 				newStats.set(kind, {
 					kind,
@@ -146,16 +148,19 @@ export class EventLoaderService {
 					contactsWithEvents: 0,
 					totalContacts: batchPubkeys.length
 				})
-			})
-
-			const contactsWithKinds = new Map<number, Set<string>>()
-			currentState.targetKinds.forEach((kind) => {
 				contactsWithKinds.set(kind, new Set())
 			})
 
+			// Group events by pubkey
 			for (const event of events) {
-				const kind = event.kind!
 				const pubkey = event.pubkey
+				if (!eventsByPubkey.has(pubkey)) {
+					eventsByPubkey.set(pubkey, [])
+				}
+				eventsByPubkey.get(pubkey)!.push(event)
+
+				// Track stats
+				const kind = event.kind!
 				pubkeysWithEvents.add(pubkey)
 
 				const contactsForKind = contactsWithKinds.get(kind)
@@ -163,15 +168,33 @@ export class EventLoaderService {
 					contactsForKind.add(pubkey)
 				}
 
-				const existingEvent = newEvents.get(pubkey)
-				if (!existingEvent || event.created_at! > existingEvent.created_at!) {
-					newEvents.set(pubkey, event)
-				}
-
 				const kindStats = newStats.get(kind)!
 				kindStats.foundCount++
 			}
 
+			// Process events and find latest for each pubkey/kind
+			const newEvents = new Map<string, NDKEvent>()
+			for (const [pubkey, pubkeyEvents] of eventsByPubkey) {
+				// Get existing event if any
+				const existingEvent = currentState.events.get(pubkey)
+
+				// Find the most recent event
+				let latestEvent = pubkeyEvents[0]
+				for (const event of pubkeyEvents) {
+					if (event.created_at! > latestEvent.created_at!) {
+						latestEvent = event
+					}
+				}
+
+				// Only update if we found a newer event
+				if (!existingEvent || latestEvent.created_at! > existingEvent.created_at!) {
+					newEvents.set(pubkey, latestEvent)
+				} else {
+					newEvents.set(pubkey, existingEvent)
+				}
+			}
+
+			// Update contact stats
 			for (const [kind, contacts] of contactsWithKinds) {
 				const stats = newStats.get(kind)
 				if (stats) {
@@ -179,8 +202,11 @@ export class EventLoaderService {
 				}
 			}
 
+			// Update state with new events
 			this.state.update((state) => {
 				const updatedEvents = new Map(state.events)
+
+				// Merge in new/updated events
 				for (const [pubkey, event] of newEvents) {
 					updatedEvents.set(pubkey, event)
 				}
@@ -223,7 +249,9 @@ export class EventLoaderService {
 		if (lastBatchSize === 0) return MIN_LIMIT
 
 		if (previousSuccessRate < MIN_SUCCESS_RATE) {
-			return Math.min(MAX_LIMIT, lastBatchSize + LIMIT_INCREMENT)
+			const nextLimit = Math.min(MAX_LIMIT, lastBatchSize + LIMIT_INCREMENT)
+			console.log('nextLimit', nextLimit, previousSuccessRate)
+			return nextLimit
 		}
 
 		return MIN_LIMIT
@@ -300,7 +328,7 @@ export class EventLoaderService {
 					...state.progress,
 					isFetching: false,
 					isAutoFetching: false,
-					stats: new Map(),
+					// stats: new Map(),
 					fetchedPubkeys: new Set(filteredEvents.keys()),
 					loaded: filteredEvents.size,
 					lastBatchSize: 0
@@ -345,28 +373,21 @@ export class EventLoaderService {
 			}
 		}))
 	}
-
+	// TODO improve reset
 	reset() {
 		this.stopAutoFetch()
 		this.retryCount.clear()
-
-		this.state.set({
-			targetKinds: [],
+		this.state.update((state) => ({
+			...state,
 			progress: {
-				isFetching: false,
-				isAutoFetching: false,
+				...state.progress,
 				stats: new Map(),
-				fetchedPubkeys: new Set(),
-				total: 0,
-				loaded: 0,
-				lastBatchSize: 0,
-				completionPercentage: 0
+				fetchedPubkeys: new Set<string>()
 			},
-			pubkeys: [],
+			pubkeys: state.pubkeys,
 			events: new Map(),
 			missingEvents: new Map()
-		})
-		queryClient.setQueryData([EVENTS_QUERY_KEY], new Map())
+		}))
 	}
 }
 

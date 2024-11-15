@@ -4,8 +4,11 @@
 	import type { NDKEvent } from '@nostr-dev-kit/ndk'
 	import { Badge } from '$lib/components/ui/badge'
 	import { Card, CardContent, CardFooter } from '$lib/components/ui/card'
+	import { Collapsible, CollapsibleTrigger } from './ui/collapsible'
+	import CollapsibleContent from './ui/collapsible/collapsible-content.svelte'
 
 	export let event: NDKEvent | undefined
+	let open: boolean
 </script>
 
 {#if event != undefined}
@@ -14,6 +17,14 @@
 			<h3 class="text-lg font-semibold">
 				{event ? NDKKind[Number(event.kind)] || `Kind ${event.kind}` : 'Unknown Event'}
 			</h3>
+			<Collapsible bind:open>
+				<CollapsibleTrigger>View</CollapsibleTrigger>
+				<CollapsibleContent>
+					<div class="whitespace-pre-wrap">
+						<span>{event?.content}</span>
+					</div>
+				</CollapsibleContent>
+			</Collapsible>
 		</CardContent>
 		<CardFooter class="text-sm text-muted-foreground">
 			{#if event}

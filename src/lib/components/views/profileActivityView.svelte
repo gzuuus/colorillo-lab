@@ -11,6 +11,19 @@
 	import { onDestroy } from 'svelte'
 	import { eventLoader } from '$lib/services/event-loader'
 	import EventLoaderProgress from '../eventLoaderProgress.svelte'
+	import { createVirtualizer } from '@tanstack/svelte-virtual'
+	import { derived, writable } from 'svelte/store'
+	import {
+		createSvelteTable,
+		getCoreRowModel,
+		getSortedRowModel,
+		type ColumnDef,
+		type SortingState,
+		type Updater
+	} from '@tanstack/svelte-table'
+	import { Progress } from '../ui/progress'
+
+	let containerElement: HTMLElement
 
 	$: progress = eventLoader.getProgress()
 	$: targetKinds = eventLoader.getTargetKinds()
@@ -18,6 +31,95 @@
 	$: eventsQuery = $ndkStore && eventLoader.createEventsQuery()
 	$: autoFetchEnabled = $progress.isAutoFetching
 
+	// Sorting state
+	let sorting: SortingState = []
+
+	function setSorting(updater: Updater<SortingState>) {
+		if (updater instanceof Function) sorting = updater(sorting)
+		else sorting = updater
+
+		tableOptions.update((opts) => ({
+			...opts,
+			state: {
+				...opts.state,
+				sorting
+			}
+		}))
+	}
+
+	// Table configuration
+	type ContactWithEvent = {
+		contact: any
+		event: any
+		color: string
+	}
+
+	const columns: ColumnDef<ContactWithEvent>[] = [
+		{
+			accessorFn: (row) => row.event.created_at,
+			id: 'created_at',
+			header: 'Created At'
+		},
+		{
+			accessorKey: 'contact.pubkey',
+			id: 'pubkey',
+			header: 'Public Key'
+		}
+	]
+
+	// Derive sorted contacts with their events
+	$: contactsWithEvents = derived(
+		[createActiveUserFollowsQuery, eventsQuery],
+		([$follows, $events]) => {
+			if (!$follows?.data || !$events?.data) return []
+
+			return [...$follows.data]
+				.filter((follow) => $events.data.has(follow.pubkey))
+				.map((follow) => ({
+					contact: follow,
+					event: $events.data.get(follow.pubkey)!,
+					color: `#${follow.pubkey.slice(0, 6)}`
+				}))
+		}
+	)
+
+	$: tableOptions = writable({
+		data: $contactsWithEvents,
+		columns,
+		state: {
+			sorting
+		},
+		onSortingChange: setSorting,
+		getCoreRowModel: getCoreRowModel(),
+		getSortedRowModel: getSortedRowModel()
+	})
+
+	$: table = createSvelteTable(tableOptions)
+	$: rows = $table.getRowModel().rows
+
+	// Create virtualizer with sorted rows
+	$: virtualizer = createVirtualizer({
+		count: rows.length,
+		getScrollElement: () => containerElement,
+		estimateSize: () => 250,
+		overscan: 5
+	})
+
+	$: sortOrder = sorting[0]?.desc ? 'desc' : 'asc'
+	$: sortBy = sorting[0]?.id || 'created_at'
+
+	function toggleSortOrder() {
+		setSorting((old) =>
+			old[0]?.desc ? [{ id: sortBy, desc: false }] : [{ id: sortBy, desc: true }]
+		)
+	}
+
+	function toggleSortBy() {
+		const newSortBy = sortBy === 'created_at' ? 'pubkey' : 'created_at'
+		setSorting([{ id: newSortBy, desc: sortOrder === 'desc' }])
+	}
+
+	// Rest of the existing functionality...
 	$: if ($createActiveUserFollowsQuery.data) {
 		const pubkeys = [...$createActiveUserFollowsQuery.data].map((follow) => follow.pubkey)
 		const initialKinds = [0, 1, 3, 7]
@@ -31,12 +133,6 @@
 			label: key,
 			value: value as number
 		}))
-
-	async function fetchNextBatch() {
-		if ($ndkStore && !$progress.isFetching && $pendingPubkeys.length > 0) {
-			await eventLoader.fetchNextBatch($ndkStore)
-		}
-	}
 
 	function toggleAutoFetch() {
 		if ($ndkStore) {
@@ -61,6 +157,15 @@
 			eventLoader.updateTargetKinds(newKinds)
 		}
 	}
+
+	$: coveragePercentage =
+		($pendingPubkeys?.length || $pendingPubkeys.length == 0) && $createActiveUserFollowsQuery?.data
+			? Math.floor(
+					(($createActiveUserFollowsQuery.data.size - $pendingPubkeys.length) /
+						$createActiveUserFollowsQuery.data.size) *
+						100
+				)
+			: 0
 
 	onDestroy(() => {
 		eventLoader.reset()
@@ -134,17 +239,6 @@
 	<!-- Loading Controls -->
 	<div class="flex items-center gap-4">
 		<Button
-			on:click={fetchNextBatch}
-			disabled={$progress.isFetching || $pendingPubkeys.length === 0 || $progress.isAutoFetching}
-			variant={$progress.isFetching ? 'outline' : 'default'}
-		>
-			{#if $progress.isFetching}
-				<span class="inline-block animate-spin mr-2">⟳</span>
-			{/if}
-			{$progress.isFetching ? 'Fetching...' : 'Fetch Next Batch'}
-		</Button>
-
-		<Button
 			variant={autoFetchEnabled ? 'destructive' : 'secondary'}
 			on:click={toggleAutoFetch}
 			disabled={$pendingPubkeys.length === 0}
@@ -154,35 +248,67 @@
 			{/if}
 			{autoFetchEnabled ? 'Stop Auto Fetch' : 'Start Auto Fetch'}
 		</Button>
+		<Button variant="ghost" disabled={$progress.isFetching} on:click={() => eventLoader.reset()}>
+			reset
+		</Button>
 	</div>
 
 	<!-- Progress Stats -->
 	{#if $progress.total > 0}
-		<div class="p-4 bg-muted rounded-md">
-			<div class="grid gap-2">
+		<div class="pt-4 bg-muted rounded-md">
+			<div class="grid gap-2 px-4 pb-3">
 				<div class="flex justify-between text-sm text-muted-foreground">
 					<div>
-						<p>Pending: {$pendingPubkeys.length} contacts</p>
+						{#if $pendingPubkeys.length}
+							<p>Pending: {$pendingPubkeys.length} contacts</p>
+						{:else}
+							<p>Contacts: {$createActiveUserFollowsQuery.data?.size}</p>
+						{/if}
 					</div>
+					{#if coveragePercentage}
+						{coveragePercentage}%
+					{/if}
 				</div>
-				{#if $progress.isFetching}
-					<p class="text-sm text-muted-foreground animate-pulse">Loading events...</p>
-				{/if}
+			</div>
+			<div class=" flex gap-2 items-center">
+				<Progress value={coveragePercentage} max={100} class="w-full h-1" />
 			</div>
 		</div>
 	{/if}
 
-	<!-- Events Grid -->
-	{#if $eventsQuery?.data && $createActiveUserFollowsQuery.data}
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each $createActiveUserFollowsQuery.data as { pubkey } (pubkey)}
-				{#if $eventsQuery.data.get(pubkey)}
-					<div class="space-y-2">
-						<ContactCard color={`#${pubkey.slice(0, 6)}`} {pubkey} />
-						<EventVisualizer event={$eventsQuery.data.get(pubkey)} />
-					</div>
-				{/if}
-			{/each}
+	<!-- Sorting Controls -->
+	<div class="flex space-x-2">
+		<Button on:click={toggleSortBy} variant="outline">
+			Sort by: {sortBy === 'created_at' ? 'Creation Date' : 'Public Key'}
+		</Button>
+		<Button on:click={toggleSortOrder} variant="outline">
+			Order: {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+		</Button>
+	</div>
+
+	<!-- Virtualized Events Grid -->
+	{#if $contactsWithEvents.length > 0}
+		<div class="relative border rounded-md" style="height: calc(100vh - 400px);">
+			<div class="overflow-y-auto h-full" bind:this={containerElement}>
+				<div style="height: {$virtualizer.getTotalSize()}px; width: 100%; position: relative;">
+					{#each $virtualizer.getVirtualItems() as virtualRow (virtualRow.index)}
+						<div
+							class="absolute top-0 left-0 w-full"
+							style="height: {virtualRow.size}px; transform: translateY({virtualRow.start}px);"
+						>
+							<div class="p-2">
+								<div class="space-y-2">
+									<ContactCard
+										color={rows[virtualRow.index].original.color}
+										pubkey={rows[virtualRow.index].original.contact.pubkey}
+									/>
+									<EventVisualizer event={rows[virtualRow.index].original.event} />
+								</div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
 		</div>
 	{/if}
 </div>

@@ -24,8 +24,8 @@ export const relayBlackList: string[] = []
 export const ndk: NDKSvelte = new NDKSvelte({
 	explicitRelayUrls: defaulRelaysUrls,
 	blacklistRelayUrls: relayBlackList,
-	enableOutboxModel: true,
-	autoConnectUserRelays: true,
+	enableOutboxModel: false,
+	autoConnectUserRelays: false,
 	cacheAdapter
 })
 

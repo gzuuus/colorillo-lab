@@ -54,14 +54,7 @@ async function updateRelayPool(
 		const normalizedUrl = normalizeRelayUrl(url)
 
 		if (action === 'add' && pool.relays.size < MAX_RELAYS) {
-			const relay = new NDKRelay(
-				normalizedUrl,
-				NDKRelayAuthPolicies.signIn({
-					ndk,
-					signer: ndk.signer
-				}),
-				ndk
-			)
+			const relay = new NDKRelay(normalizedUrl, undefined, ndk)
 			pool.addRelay(relay, true)
 		} else if (action === 'remove') {
 			pool.removeRelay(normalizedUrl)
