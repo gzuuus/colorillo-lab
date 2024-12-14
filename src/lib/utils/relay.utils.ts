@@ -1,12 +1,7 @@
 import { derived } from 'svelte/store'
-import NDK, {
-	NDKEvent,
-	NDKRelay,
-	NDKRelayAuthPolicies,
-	normalizeRelayUrl
-} from '@nostr-dev-kit/ndk'
+import NDK, { NDKEvent, NDKRelay, normalizeRelayUrl } from '@nostr-dev-kit/ndk'
 import ndkStore from '$lib/stores/ndk'
-import { createActiveUserRelaysQuery } from '$lib/queries/relay.queries'
+import { createActiveUserRelaysQuery } from '$lib/queries/activeUser.queries'
 
 type RelayAction = 'add' | 'remove'
 

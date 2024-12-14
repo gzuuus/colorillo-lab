@@ -3,12 +3,12 @@
 	import { goto } from '$app/navigation'
 	import ndkStore from '$lib/stores/ndk'
 	import { queryClient } from '$lib/queries/client'
-	import { createActiveUserFollowsQuery } from '$lib/queries/follows.query'
 	import '../app.css'
 	import { contactLoader } from '$lib/services/contact-loader'
 	import Header from '$lib/components/header.svelte'
 	import ProfileLoaderProgress from '$lib/components/profileLoaderProgress.svelte'
 	import { relayPoolManager } from '$lib/utils/relay.utils'
+	import { createActiveUserFollowsQuery } from '$lib/queries/activeUser.queries'
 
 	$: $relayPoolManager
 

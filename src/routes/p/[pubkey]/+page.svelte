@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ContactListVisualizer from '$lib/components/contactListVisualizer.svelte'
-	import { createActiveUserProfileQuery, getProfileName } from '$lib/queries/follows.query'
+	import { createActiveUserProfileQuery } from '$lib/queries/activeUser.queries'
+	import { getProfileName } from '$lib/utils/utils'
 </script>
 
 {#if $createActiveUserProfileQuery.isLoading}

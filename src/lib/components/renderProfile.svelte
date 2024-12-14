@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { createProfileQuery, getProfileName } from '$lib/queries/follows.query'
+	import { createProfileQuery } from '$lib/queries/follows.query'
+	import { getProfileName } from '$lib/utils/utils'
 	export let pubkey: string
 	const profileQuery = createProfileQuery(pubkey)
 </script>

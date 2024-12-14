@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createActiveUserFollowsQuery } from '$lib/queries/follows.query'
 	import ndkStore from '$lib/stores/ndk'
 	import ContactCard from '$lib/components/contactCard.svelte'
 	import { Button } from '$lib/components/ui/button'
@@ -22,6 +21,7 @@
 		type Updater
 	} from '@tanstack/svelte-table'
 	import { Progress } from '../ui/progress'
+	import { createActiveUserFollowsQuery } from '$lib/queries/activeUser.queries'
 
 	let containerElement: HTMLElement
 

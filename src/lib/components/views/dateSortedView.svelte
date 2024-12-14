@@ -1,9 +1,5 @@
 <script lang="ts">
 	import ContactCard from '../contactCard.svelte'
-	import {
-		createActiveUserFollowsQuery,
-		getTypedProfileQueryData
-	} from '$lib/queries/follows.query'
 	import { createVirtualizer } from '@tanstack/svelte-virtual'
 	import { writable } from 'svelte/store'
 	import { Button } from '$lib/components/ui/button'
@@ -17,6 +13,8 @@
 	} from '@tanstack/svelte-table'
 	import type { NDKUser } from '@nostr-dev-kit/ndk'
 	import { queryClient } from '$lib/queries/client'
+	import { getTypedProfileQueryData } from '$lib/utils/utils'
+	import { createActiveUserFollowsQuery } from '$lib/queries/activeUser.queries'
 
 	// TODO: if you aready have the profiles of your contacts cached, this view will display outdated data, we have to manually or automatically refresh the profiles
 

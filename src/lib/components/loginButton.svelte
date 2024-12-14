@@ -6,7 +6,8 @@
 
 	async function handleAuth() {
 		if ($ndkStore.activeUser) {
-			// TODO: Implement logout functionality
+			$ndkStore.signer = undefined
+			$ndkStore.activeUser = undefined
 			goto('/')
 		} else {
 			const loginResult = await loginWithExtension()

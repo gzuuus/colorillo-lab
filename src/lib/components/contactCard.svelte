@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { createProfileQuery, getProfileName } from '$lib/queries/follows.query'
+	import { createProfileQuery } from '$lib/queries/follows.query'
 	import { formatDate, formatRelativeTime } from '$lib/utils/date.utils'
+	import { getProfileName } from '$lib/utils/utils'
 
 	export let color: string
 	export let pubkey: string
