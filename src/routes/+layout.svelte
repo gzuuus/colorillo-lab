@@ -9,6 +9,7 @@
 	import ProfileLoaderProgress from '$lib/components/profileLoaderProgress.svelte'
 	import { relayPoolManager } from '$lib/utils/relay.utils'
 	import { createActiveUserFollowsQuery } from '$lib/queries/activeUser.queries'
+	import Drawer from '$lib/components/drawer.svelte'
 
 	$: $relayPoolManager
 
@@ -27,6 +28,7 @@
 		<main class="container mx-auto px-4 py-8">
 			<ProfileLoaderProgress />
 			<slot />
+			<Drawer />
 		</main>
 	</div>
 </QueryClientProvider>
