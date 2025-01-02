@@ -1,32 +1,41 @@
+// lib/stores/drawer.ts
 import type { NDKEvent } from '@nostr-dev-kit/ndk'
 import { writable } from 'svelte/store'
 
-export type DraweUiType = 'event'
+export type DrawerUiType = 'event' | 'event-tools'
+
+export interface DrawerEventTools {
+	kind: number
+	action?: 'view' | 'backup' | 'export'
+}
 
 export interface Drawer {
-	drawerType?: DraweUiType
+	drawerType?: DrawerUiType
 	event?: NDKEvent
+	eventTools?: DrawerEventTools
 }
 
 export const drawerUI = writable<Drawer>({
 	drawerType: undefined,
-	event: undefined
+	event: undefined,
+	eventTools: undefined
 })
 
-const setDrawerState = (state: Drawer) => {
-	drawerUI.set(state)
+export const openDrawer = (drawer: Drawer) => {
+	drawerUI.set(drawer)
 }
 
-export const openDrawer = (drawer: Drawer) => {
-	setDrawerState({
-		drawerType: drawer.drawerType,
-		event: drawer.event
+export const openEventTools = (kind: number, action: 'view' | 'backup' | 'export' = 'view') => {
+	drawerUI.set({
+		drawerType: 'event-tools',
+		eventTools: { kind, action }
 	})
 }
 
 export const closeDrawer = () => {
-	setDrawerState({
+	drawerUI.set({
 		drawerType: undefined,
-		event: undefined
+		event: undefined,
+		eventTools: undefined
 	})
 }

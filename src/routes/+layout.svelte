@@ -10,6 +10,7 @@
 	import { relayPoolManager } from '$lib/utils/relay.utils'
 	import { createActiveUserFollowsQuery } from '$lib/queries/activeUser.queries'
 	import Drawer from '$lib/components/drawer.svelte'
+	import { Toaster } from 'svelte-sonner'
 
 	$: $relayPoolManager
 
@@ -22,6 +23,7 @@
 	}
 </script>
 
+<Toaster richColors />
 <QueryClientProvider client={queryClient}>
 	<div class="min-h-screen bg-background">
 		<Header />

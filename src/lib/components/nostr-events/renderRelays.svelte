@@ -5,6 +5,7 @@
 	import { openDrawer } from '$lib/stores/drawer'
 
 	export let relayEvent: NDKEvent
+	let isOpen: boolean = false
 	interface RelayInfo {
 		url: string
 		read?: boolean
@@ -20,12 +21,21 @@
 		switch (Number(event.kind)) {
 			case NDKKind.Contacts:
 				try {
+					if (!event.content.trim()) return []
 					const content = JSON.parse(event.content)
-					return Object.entries(content).map(([url, attrs]) => ({
-						url,
-						read: (attrs as RelayAttributes)?.read ?? false,
-						write: (attrs as RelayAttributes)?.write ?? false
-					}))
+					return Object.entries(content).map(([url, attrs]) => {
+						if (
+							!attrs ||
+							(typeof attrs === 'object' && Object.keys(attrs as object).length === 0)
+						) {
+							return { url, read: true, write: true }
+						}
+						return {
+							url,
+							read: (attrs as RelayAttributes)?.read ?? true,
+							write: (attrs as RelayAttributes)?.write ?? true
+						}
+					})
 				} catch (e) {
 					console.error(`Failed to parse kind ${event.kind} relay list:`, e)
 					return []
@@ -33,11 +43,16 @@
 			case NDKKind.RelayList:
 				return event.tags
 					.filter((tag) => tag[0] === 'r')
-					.map((tag) => ({
-						url: tag[1],
-						read: tag[2] === 'read',
-						write: tag[2] === 'write'
-					}))
+					.map((tag) => {
+						if (!tag[2]) {
+							return { url: tag[1], read: true, write: true }
+						}
+						return {
+							url: tag[1],
+							read: tag[2] === 'read' || tag[2] === undefined,
+							write: tag[2] === 'write' || tag[2] === undefined
+						}
+					})
 			default:
 				return []
 		}
@@ -46,37 +61,33 @@
 	const relays = parseRelayList(relayEvent)
 </script>
 
-<div class="p-4 border border-gray-200 rounded-lg">
-	<div class="flex w-full justify-between items-center mb-2">
-		<Popover.Root>
-			<h3 class="text-lg font-semibold">
-				Event Kind: {relayEvent.kind}
-				<span class=" text-sm font-light">({NDKKind[Number(relayEvent.kind)]})</span>
-			</h3>
-			<Popover.Trigger class="hover:bg-gray-100 rounded-full p-1">
-				<MoreVertical class="w-5 h-5 text-gray-600" />
-			</Popover.Trigger>
-			<Popover.Content class="w-48 p-2 bg-white shadow-lg rounded-md border border-gray-200">
-				<div class="space-y-1">
-					<button
-						class="w-full text-left px-2 py-1 hover:bg-gray-100 bg-gray-50 rounded"
-						on:click={() => openDrawer({ drawerType: 'event', event: relayEvent })}
-					>
-						View Details
-					</button>
-					<button class="w-full text-left px-2 py-1 hover:bg-gray-100 bg-gray-50 rounded">
-						Edit Event
-					</button>
-					<button
-						class="w-full text-left px-2 py-1 hover:bg-red-50 bg-gray-50 hover:text-red-600 rounded"
-					>
-						Delete Event
-					</button>
-				</div>
-			</Popover.Content>
-		</Popover.Root>
-	</div>
-	{#if relays.length}
+{#if relays.length}
+	<div class="p-4 border border-gray-200 rounded-lg">
+		<div class="flex w-full justify-between items-center mb-2">
+			<Popover.Root bind:open={isOpen}>
+				<h3 class="text-lg font-semibold">
+					Event Kind: {relayEvent.kind}
+					<span class=" text-sm font-light">({NDKKind[Number(relayEvent.kind)]})</span>
+				</h3>
+				<Popover.Trigger class="hover:bg-gray-100 rounded-full p-1">
+					<MoreVertical class="w-5 h-5 text-gray-600" />
+				</Popover.Trigger>
+				<Popover.Content class="w-48 p-2 bg-white shadow-lg rounded-md border border-gray-200">
+					<div class="space-y-1">
+						<button
+							class="w-full text-left px-2 py-1 hover:bg-gray-100 bg-gray-50 rounded"
+							on:click={() => {
+								openDrawer({ drawerType: 'event', event: relayEvent })
+								isOpen = false
+							}}
+						>
+							View Details
+						</button>
+					</div>
+				</Popover.Content>
+			</Popover.Root>
+		</div>
+
 		<ul class="space-y-2">
 			{#each relays as relay}
 				<li
@@ -112,7 +123,5 @@
 				</li>
 			{/each}
 		</ul>
-	{:else}
-		<p class="text-gray-500">No relays found</p>
-	{/if}
-</div>
+	</div>
+{/if}

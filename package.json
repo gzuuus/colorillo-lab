@@ -49,7 +49,9 @@
 		"cmdk-sv": "^0.0.18",
 		"date-fns": "^4.1.0",
 		"dexie": "^4.0.8",
+		"nostr-tools": "^2.10.4",
 		"prettier-plugin-tailwindcss": "^0.6.6",
+		"svelte-json-tree": "^2.2.0",
 		"tailwind-merge": "^2.5.2",
 		"tailwind-variants": "^0.2.1",
 		"tinycolor2": "^1.6.0"
