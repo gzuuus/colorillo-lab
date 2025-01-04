@@ -65,3 +65,5 @@ export function debounce<T extends (...args: any[]) => void>(
 		timeoutId = setTimeout(() => func(...args), delay)
 	}
 }
+
+export type ObjectValues<T> = T[keyof T]

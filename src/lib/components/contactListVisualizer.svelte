@@ -4,19 +4,22 @@
 	import DateSortedView from './views/dateSortedView.svelte'
 	import ColorIndexView from './views/colorIndexView.svelte'
 	import ProfileActivityView from './views/profileActivityView.svelte'
+	import type { ObjectValues } from '$lib/utils'
 
-	enum VisualizationType {
-		ColorIndex = 'Color Index',
-		DateSorted = 'Date Sorted',
-		ProfileActivity = 'Profile Activity'
-	}
+	const VISUALIZATION_TYPES = {
+		ColorIndex: 'Color Index',
+		DateSorted: 'Date Sorted',
+		ProfileActivity: 'Profile Activity'
+	} as const
 
-	const currentVisualization = writable<VisualizationType>(VisualizationType.ColorIndex)
+	type VisualizationType = ObjectValues<typeof VISUALIZATION_TYPES>
+
+	const currentVisualization = writable<VisualizationType>(VISUALIZATION_TYPES.ColorIndex)
 
 	const visualizations = [
-		{ type: VisualizationType.ColorIndex, component: ColorIndexView },
-		{ type: VisualizationType.DateSorted, component: DateSortedView },
-		{ type: VisualizationType.ProfileActivity, component: ProfileActivityView }
+		{ type: VISUALIZATION_TYPES.ColorIndex, component: ColorIndexView },
+		{ type: VISUALIZATION_TYPES.DateSorted, component: DateSortedView },
+		{ type: VISUALIZATION_TYPES.ProfileActivity, component: ProfileActivityView }
 	]
 
 	function switchVisualization(type: VisualizationType) {
